@@ -1,5 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
+import imageCompression from 'browser-image-compression';
 import { createClient } from '@/lib/supabaseBrowser';
+
+/** 上傳前壓縮設定：最長邊 1600px、品質 0.75、目標 800KB 以下 */
+const COMPRESSION_OPTIONS = {
+  maxSizeMB: 0.8,
+  maxWidthOrHeight: 1600,
+  initialQuality: 0.75,
+  useWebWorker: true,
+};
 
 /**
  * 表單用照片附件編輯器
@@ -8,6 +17,7 @@ import { createClient } from '@/lib/supabaseBrowser';
  *   - existing: [{id, file_path, caption, removed}]
  *   - pending:  [{key, file, caption, previewUrl}]
  *
+ * 照片加入前會自動壓縮（失敗則退回原始檔案）
  * 圖片顯示使用固定高度 + inline style，
  * 不依賴 aspect-ratio 等 CSS，確保手機瀏覽器（含舊版 WebView）都能正常顯示
  */
@@ -21,6 +31,7 @@ export default function AttachmentEditor({
     initialAttachments.map((a) => ({ ...a, removed: false }))
   );
   const [pending, setPending] = useState([]);
+  const [processing, setProcessing] = useState(false);
   const galleryInputRef = useRef(null);
   const cameraInputRef = useRef(null);
   const onChangeRef = useRef(onChange);
@@ -44,21 +55,37 @@ export default function AttachmentEditor({
   const publicUrl = (filePath) =>
     supabase.storage.from(bucket).getPublicUrl(filePath).data.publicUrl;
 
-  function handleFiles(e) {
+  async function handleFiles(e) {
     const files = Array.from(e.target.files || []);
-    if (files.length === 0) return;
-    const newPending = files.map((file, i) => {
-      const previewUrl = URL.createObjectURL(file);
-      createdUrlsRef.current.push(previewUrl);
-      return {
-        key: `${Date.now()}-${i}-${file.name}`,
-        file,
-        caption: '',
-        previewUrl,
-      };
-    });
-    setPending((prev) => [...prev, ...newPending]);
     e.target.value = '';
+    if (files.length === 0) return;
+
+    setProcessing(true);
+    try {
+      const newPending = [];
+      for (let i = 0; i < files.length; i++) {
+        const original = files[i];
+        // 逐一壓縮（拍照與相簿選擇都會走這裡）；失敗則退回原始檔案
+        let file = original;
+        try {
+          file = await imageCompression(original, COMPRESSION_OPTIONS);
+        } catch (err) {
+          console.error(`照片「${original.name}」壓縮失敗，改用原始檔案：`, err);
+          file = original;
+        }
+        const previewUrl = URL.createObjectURL(file);
+        createdUrlsRef.current.push(previewUrl);
+        newPending.push({
+          key: `${Date.now()}-${i}-${original.name}`,
+          file,
+          caption: '',
+          previewUrl,
+        });
+      }
+      setPending((prev) => [...prev, ...newPending]);
+    } finally {
+      setProcessing(false);
+    }
   }
 
   function removeExisting(id) {
@@ -204,12 +231,13 @@ export default function AttachmentEditor({
         </div>
       )}
 
-      {/* 拍照 / 新增照片按鈕 */}
+      {/* 拍照 / 新增照片按鈕（壓縮處理中停用並顯示狀態） */}
       <div className={`grid grid-cols-2 gap-3 ${existing.length > 0 || pending.length > 0 ? 'mt-3' : ''}`}>
         <button
           type="button"
           onClick={() => cameraInputRef.current?.click()}
-          className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-accent-200 bg-accent-50/50 px-3 py-3.5 text-sm font-medium text-accent-600 transition-colors hover:bg-accent-50"
+          disabled={processing}
+          className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-accent-200 bg-accent-50/50 px-3 py-3.5 text-sm font-medium text-accent-600 transition-colors hover:bg-accent-50 disabled:cursor-not-allowed disabled:opacity-60"
         >
           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
             <path
@@ -224,7 +252,8 @@ export default function AttachmentEditor({
         <button
           type="button"
           onClick={() => galleryInputRef.current?.click()}
-          className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-accent-200 bg-accent-50/50 px-3 py-3.5 text-sm font-medium text-accent-600 transition-colors hover:bg-accent-50"
+          disabled={processing}
+          className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-accent-200 bg-accent-50/50 px-3 py-3.5 text-sm font-medium text-accent-600 transition-colors hover:bg-accent-50 disabled:cursor-not-allowed disabled:opacity-60"
         >
           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
             <path
@@ -236,6 +265,19 @@ export default function AttachmentEditor({
           新增照片
         </button>
       </div>
+      {processing && (
+        <p className="mt-2 flex items-center justify-center gap-2 text-xs font-medium text-accent-600">
+          <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            />
+          </svg>
+          照片處理中…
+        </p>
+      )}
       {captionPresets.length > 0 && (
         <p className="mt-2 text-center text-xs text-gray-400">可為照片標示「施工前／施工中／施工後」</p>
       )}

@@ -103,3 +103,4 @@ Storage buckets：`property-files`、`work-files`（皆公開讀取、僅 admin 
 ## 更新紀錄
 
 - 2026-10-17：修正照片顯示（縮圖改固定高度 + object-cover，燈箱改 object-contain 完整顯示，改用 inline style 確保舊版手機瀏覽器相容）；新增「拍照」按鈕（手機可直接開啟相機，capture="environment"）
+- 2026-10-17：新增照片上傳前自動壓縮（browser-image-compression：最長邊 1600px、品質 0.75、目標 800KB 以下；壓縮失敗自動退回原始檔案；處理中顯示載入狀態）
