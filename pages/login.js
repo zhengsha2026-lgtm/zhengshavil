@@ -47,11 +47,26 @@ export default function LoginPage() {
     <div className="flex min-h-screen flex-col items-center justify-center bg-surface px-4 py-10">
       <Head>
         <title>登入 - 正砂里紀錄系統</title>
+        <link rel="icon" type="image/png" href="/logo.png" />
       </Head>
 
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-accent-600 text-xl font-bold text-white shadow-soft">
+          {/* LOGO 圖片；載入失敗自動退回「正」字圖示 */}
+          <img
+            src="/logo.png"
+            alt="正砂里"
+            className="mx-auto mb-4 h-16 w-auto object-contain"
+            style={{ height: '4rem', width: 'auto', objectFit: 'contain' }}
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+              e.currentTarget.nextElementSibling.style.display = 'flex';
+            }}
+          />
+          <div
+            className="mx-auto mb-4 hidden h-14 w-14 items-center justify-center rounded-2xl bg-accent-600 text-xl font-bold text-white shadow-soft"
+            style={{ display: 'none' }}
+          >
             正
           </div>
           <h1 className="text-xl font-bold text-gray-800">正砂里紀錄系統</h1>

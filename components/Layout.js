@@ -79,13 +79,28 @@ export default function Layout({ children, title }) {
       <Head>
         <title>{title ? `${title} - 正砂里紀錄系統` : '正砂里內財產與建設紀錄系統'}</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link rel="icon" type="image/png" href="/logo.png" />
       </Head>
 
       {/* 頂部導覽列 */}
       <header className="sticky top-0 z-30 border-b border-gray-100 bg-white/90 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
           <Link href="/" className="flex items-center gap-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-accent-600 text-sm font-bold text-white">
+            {/* LOGO 圖片；載入失敗（如檔案尚未放置）自動退回「正」字圖示 */}
+            <img
+              src="/logo.png"
+              alt="正砂里"
+              className="h-10 w-auto object-contain"
+              style={{ height: '2.5rem', width: 'auto', objectFit: 'contain' }}
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+                e.currentTarget.nextElementSibling.style.display = 'flex';
+              }}
+            />
+            <span
+              className="hidden h-8 w-8 items-center justify-center rounded-xl bg-accent-600 text-sm font-bold text-white"
+              style={{ display: 'none' }}
+            >
               正
             </span>
             <span className="text-[15px] font-semibold text-gray-800">正砂里紀錄系統</span>
