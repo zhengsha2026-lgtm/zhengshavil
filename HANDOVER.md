@@ -99,3 +99,7 @@ Storage buckets：`property-files`、`work-files`（皆公開讀取、僅 admin 
 - 分類目前寫死在前端 `lib/constants.js`，之後可改成資料表設定
 - 可加入匯出 Excel（財產清冊／工作月報）
 - 可加入管理員建立帳號的介面（目前於 Supabase Dashboard 操作）
+
+## 更新紀錄
+
+- 2026-10-17：修正照片顯示（縮圖改固定高度 + object-cover，燈箱改 object-contain 完整顯示，改用 inline style 確保舊版手機瀏覽器相容）；新增「拍照」按鈕（手機可直接開啟相機，capture="environment"）

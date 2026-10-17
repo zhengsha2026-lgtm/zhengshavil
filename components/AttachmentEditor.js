@@ -7,6 +7,9 @@ import { createClient } from '@/lib/supabaseBrowser';
  * - onChange({ existing, pending })：狀態變動時通知父層（建議存入 ref）
  *   - existing: [{id, file_path, caption, removed}]
  *   - pending:  [{key, file, caption, previewUrl}]
+ *
+ * 圖片顯示使用固定高度 + inline style，
+ * 不依賴 aspect-ratio 等 CSS，確保手機瀏覽器（含舊版 WebView）都能正常顯示
  */
 export default function AttachmentEditor({
   initialAttachments = [],
@@ -18,7 +21,8 @@ export default function AttachmentEditor({
     initialAttachments.map((a) => ({ ...a, removed: false }))
   );
   const [pending, setPending] = useState([]);
-  const inputRef = useRef(null);
+  const galleryInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
   const onChangeRef = useRef(onChange);
   const createdUrlsRef = useRef([]);
 
@@ -82,12 +86,17 @@ export default function AttachmentEditor({
       {visibleExisting.length > 0 && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {visibleExisting.map((att) => (
-            <div key={att.id} className="relative aspect-square overflow-hidden rounded-xl bg-gray-100">
+            <div
+              key={att.id}
+              className="relative w-full overflow-hidden rounded-xl bg-gray-100"
+              style={{ height: '8rem' }}
+            >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={publicUrl(att.file_path)}
                 alt={att.caption || '既有照片'}
                 className="h-full w-full object-cover"
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 loading="lazy"
               />
               {att.caption && (
@@ -129,7 +138,7 @@ export default function AttachmentEditor({
         </div>
       )}
 
-      {/* 待上傳照片 */}
+      {/* 待上傳照片（含預覽縮圖） */}
       {pending.length > 0 && (
         <div className={`space-y-3 ${visibleExisting.length > 0 || removedExisting.length > 0 ? 'mt-3' : ''}`}>
           {pending.map((p) => (
@@ -137,9 +146,17 @@ export default function AttachmentEditor({
               key={p.key}
               className="flex items-start gap-3 rounded-xl border border-gray-100 bg-gray-50/60 p-2.5"
             >
-              <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-gray-100">
+              <div
+                className="relative shrink-0 overflow-hidden rounded-lg bg-gray-100"
+                style={{ width: '6rem', height: '6rem' }}
+              >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={p.previewUrl} alt="待上傳" className="h-full w-full object-cover" />
+                <img
+                  src={p.previewUrl}
+                  alt="待上傳照片"
+                  className="h-full w-full object-cover"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
                 <span className="absolute left-0 top-0 rounded-br-lg bg-accent-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
                   新
                 </span>
@@ -187,27 +204,57 @@ export default function AttachmentEditor({
         </div>
       )}
 
-      {/* 新增照片按鈕 */}
-      <button
-        type="button"
-        onClick={() => inputRef.current?.click()}
-        className={`flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-accent-200 bg-accent-50/50 px-4 py-3.5 text-sm font-medium text-accent-600 transition-colors hover:bg-accent-50 ${
-          existing.length > 0 || pending.length > 0 ? 'mt-3' : ''
-        }`}
-      >
-        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A1.5 1.5 0 0021.75 19.5V4.5A1.5 1.5 0 0020.25 3H3.75A1.5 1.5 0 002.25 4.5v15A1.5 1.5 0 003.75 21zM10.5 8.25h.008v.008H10.5V8.25z"
-          />
-        </svg>
-        新增照片{captionPresets.length > 0 ? '（可標示施工前／中／後）' : ''}
-      </button>
+      {/* 拍照 / 新增照片按鈕 */}
+      <div className={`grid grid-cols-2 gap-3 ${existing.length > 0 || pending.length > 0 ? 'mt-3' : ''}`}>
+        <button
+          type="button"
+          onClick={() => cameraInputRef.current?.click()}
+          className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-accent-200 bg-accent-50/50 px-3 py-3.5 text-sm font-medium text-accent-600 transition-colors hover:bg-accent-50"
+        >
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z"
+            />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
+          </svg>
+          拍照
+        </button>
+        <button
+          type="button"
+          onClick={() => galleryInputRef.current?.click()}
+          className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-accent-200 bg-accent-50/50 px-3 py-3.5 text-sm font-medium text-accent-600 transition-colors hover:bg-accent-50"
+        >
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A1.5 1.5 0 0021.75 19.5V4.5A1.5 1.5 0 0020.25 3H3.75A1.5 1.5 0 002.25 4.5v15A1.5 1.5 0 003.75 21zM10.5 8.25h.008v.008H10.5V8.25z"
+            />
+          </svg>
+          新增照片
+        </button>
+      </div>
+      {captionPresets.length > 0 && (
+        <p className="mt-2 text-center text-xs text-gray-400">可為照片標示「施工前／施工中／施工後」</p>
+      )}
+
+      {/* 相簿選擇（可多選） */}
       <input
-        ref={inputRef}
+        ref={galleryInputRef}
         type="file"
         accept="image/*"
+        multiple
+        className="hidden"
+        onChange={handleFiles}
+      />
+      {/* 直接開啟相機（手機） */}
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
         multiple
         className="hidden"
         onChange={handleFiles}

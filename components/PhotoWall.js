@@ -35,11 +35,22 @@ function Lightbox({ photos, index, onClose }) {
     <div
       className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/90 p-4"
       onClick={onClose}
+      role="dialog"
+      aria-modal="true"
     >
+      {/* 燈箱：object-contain 確保整張圖片都可見（inline style 保證跨瀏覽器一致） */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={photo.url}
         alt={photo.caption || '照片'}
-        className="max-h-[78vh] max-w-full rounded-lg object-contain"
+        className="max-h-[80vh] max-w-full rounded-lg object-contain"
+        style={{
+          maxWidth: '100%',
+          maxHeight: '80vh',
+          width: 'auto',
+          height: 'auto',
+          objectFit: 'contain',
+        }}
         onClick={(e) => e.stopPropagation()}
       />
       {photo.caption && (
@@ -113,14 +124,17 @@ export default function PhotoWall({ photos = [], emptyText = '尚無照片' }) {
           <button
             key={photo.id || photo.url || i}
             type="button"
-            className="group relative aspect-square overflow-hidden rounded-xl bg-gray-100"
+            className="group relative block w-full overflow-hidden rounded-xl bg-gray-100"
+            style={{ height: '10rem' }}
             onClick={() => setLightboxIndex(i)}
           >
+            {/* 縮圖：固定高度 + object-cover（inline style 保證跨瀏覽器一致） */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={photo.url}
               alt={photo.caption || '照片'}
               className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+              style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }}
               loading="lazy"
             />
             {photo.caption && (
