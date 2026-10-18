@@ -118,8 +118,22 @@ Storage buckets：`property-files`、`work-files`（皆公開讀取、僅 admin 
 - 可加入匯出 Excel（財產清冊／工作月報）
 - 可加入管理員建立帳號的介面（目前於 Supabase Dashboard 操作）
 
+## 圖示規範（lucide-react）
+
+新功能一律使用 `lucide-react` 圖示，透過 `components/icons.js` 的包裝元件保持一致：
+
+| 使用情境 | 尺寸 | 顏色 | 線寬 | 包裝元件 |
+|----------|------|------|------|----------|
+| 統計卡片 | 24px | accent-600 | 1.75 | `StatIcon` |
+| 空狀態 | 48px | gray-300 | 1.5 | `EmptyIcon` |
+| 列表／操作按鈕 | 18–20px | gray-500 / accent | 1.75 | `ActionIcon` |
+| 導覽列 | 22px | 依狀態 | 1.75 | `NavIcon` |
+
+用法：`<StatIcon icon={Package} />`，圖示名稱查 https://lucide.dev/icons
+
 ## 更新紀錄
 
+- 2026-10-18：全站圖示統一改用 lucide-react（移除 @heroicons/react），建立 components/icons.js 圖示規範（StatIcon/EmptyIcon/ActionIcon/NavIcon），首頁統計卡片與空狀態圖示更新
 - 2026-10-18：工作紀錄支援分次付款（works 新增 total_amount、work_progress 新增 payment_amount；主工作表單以總金額取代手動費用、進度可記錄付款；列表與詳情顯示已支出／未支出、時間軸顯示每筆付款；cost 改為系統同步已支出；須執行 migration-20261018-payment.sql）
 - 2026-10-18：工作紀錄支援長時間工作與進度紀錄（works 拆分 start_date/end_date、新增 work_progress 表、attachments 增加 progress_id；列表顯示進行天數與進度筆數、詳情頁時間軸＋進度 CRUD；須執行 migration-20261018-work-progress.sql）
 - 2026-10-17：修正照片顯示（縮圖改固定高度 + object-cover，燈箱改 object-contain 完整顯示，改用 inline style 確保舊版手機瀏覽器相容）；新增「拍照」按鈕（手機可直接開啟相機，capture="environment"）

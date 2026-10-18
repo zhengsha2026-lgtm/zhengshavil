@@ -6,18 +6,14 @@ import { monthStartStr, monthEndStr, formatDate, formatCurrency } from '@/lib/fo
 import StatusBadge, { CategoryBadge } from '@/components/StatusBadge';
 import { LoadingPage, EmptyState } from '@/components/Feedback';
 import { useUser } from '@/components/UserContext';
-import {
-  CubeIcon,
-  WrenchScrewdriverIcon,
-  BanknotesIcon,
-  ClipboardDocumentListIcon,
-} from '@heroicons/react/24/outline';
+import { StatIcon, EmptyIcon } from '@/components/icons';
+import { Package, Wrench, Banknote, ClipboardList } from 'lucide-react';
 
-function StatCard({ icon: Icon, label, value, sub }) {
+function StatCard({ icon, label, value, sub }) {
   return (
     <div className="card flex items-center gap-3.5 p-4">
       <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent-50">
-        <Icon className="h-6 w-6 text-accent-600" strokeWidth={1.6} aria-hidden="true" />
+        <StatIcon icon={icon} />
       </div>
       <div className="min-w-0">
         <p className="text-xs text-gray-400">{label}</p>
@@ -132,10 +128,10 @@ export default function HomePage() {
         <>
           {/* 統計卡片 */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <StatCard icon={CubeIcon} label="財產總筆數" value={`${stats.propertyCount} 筆`} />
-            <StatCard icon={WrenchScrewdriverIcon} label={`${monthName}工作筆數`} value={`${stats.monthWorks} 筆`} />
+            <StatCard icon={Package} label="財產總筆數" value={`${stats.propertyCount} 筆`} />
+            <StatCard icon={Wrench} label={`${monthName}工作筆數`} value={`${stats.monthWorks} 筆`} />
             <StatCard
-              icon={BanknotesIcon}
+              icon={Banknote}
               label={`${monthName}支出總額`}
               value={formatCurrency(stats.monthExpense)}
               sub="含財產採購與工作費用"
@@ -147,7 +143,7 @@ export default function HomePage() {
             <SectionHeader title="最近財產" href="/properties" />
             {recentProperties.length === 0 ? (
               <div className="card">
-                <EmptyState icon={<CubeIcon className="h-12 w-12 text-gray-300" strokeWidth={1.2} aria-hidden="true" />} title="尚無財產紀錄" />
+                <EmptyState icon={<EmptyIcon icon={Package} />} title="尚無財產紀錄" />
               </div>
             ) : (
               <div className="space-y-3">
@@ -179,7 +175,7 @@ export default function HomePage() {
             <SectionHeader title="最近工作" href="/works" />
             {recentWorks.length === 0 ? (
               <div className="card">
-                <EmptyState icon={<ClipboardDocumentListIcon className="h-12 w-12 text-gray-300" strokeWidth={1.2} aria-hidden="true" />} title="尚無工作紀錄" />
+                <EmptyState icon={<EmptyIcon icon={ClipboardList} />} title="尚無工作紀錄" />
               </div>
             ) : (
               <div className="space-y-3">
