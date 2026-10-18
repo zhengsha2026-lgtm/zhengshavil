@@ -39,7 +39,8 @@ create table if not exists public.works (
   location text,
   description text,
   executor text,
-  cost numeric,
+  cost numeric,          -- 系統同步：已支出（進度付款加總）
+  total_amount numeric,  -- 合約／預計總金額（選填）
   status text default 'completed' check (status in ('in_progress', 'completed')),
   created_by uuid references profiles(id),
   created_at timestamptz default now(),
@@ -51,6 +52,7 @@ create table if not exists public.work_progress (
   work_id uuid references public.works(id) on delete cascade not null,
   progress_date date not null,
   description text,
+  payment_amount numeric default 0,  -- 本次付款金額（選填）
   created_by uuid references profiles(id),
   created_at timestamptz default now(),
   updated_at timestamptz default now()

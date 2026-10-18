@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabaseBrowser';
-import { saveAttachments } from '@/lib/api';
+import { saveAttachments, syncWorkCost } from '@/lib/api';
 import AttachmentEditor from '@/components/AttachmentEditor';
 import { useUser } from '@/components/UserContext';
 import { todayStr } from '@/lib/format';
@@ -21,6 +21,10 @@ export default function ProgressFormModal({ workId, progress = null, attachments
   const [form, setForm] = useState({
     progress_date: progress?.progress_date || todayStr(),
     description: progress?.description || '',
+    payment_amount:
+      progress?.payment_amount != null && Number(progress.payment_amount) !== 0
+        ? String(progress.payment_amount)
+        : '',
   });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -49,6 +53,7 @@ export default function ProgressFormModal({ workId, progress = null, attachments
         work_id: workId,
         progress_date: form.progress_date,
         description: form.description.trim() || null,
+        payment_amount: form.payment_amount === '' ? 0 : Number(form.payment_amount),
       };
 
       let progressId = progress?.id;
@@ -76,6 +81,9 @@ export default function ProgressFormModal({ workId, progress = null, attachments
         state: attachmentsRef.current,
         progressId,
       });
+
+      // 同步主工作已支出（cost = 進度付款加總）
+      await syncWorkCost(workId);
 
       onSaved?.();
     } catch (err) {
@@ -139,6 +147,25 @@ export default function ProgressFormModal({ workId, progress = null, attachments
               onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
               disabled={saving}
             />
+          </div>
+
+          <div>
+            <label htmlFor="payment_amount" className="label">
+              本次付款金額（NT$）
+            </label>
+            <input
+              id="payment_amount"
+              type="number"
+              min="0"
+              step="0.01"
+              inputMode="decimal"
+              className="input"
+              placeholder="選填"
+              value={form.payment_amount}
+              onChange={(e) => setForm((f) => ({ ...f, payment_amount: e.target.value }))}
+              disabled={saving}
+            />
+            <p className="mt-1.5 text-xs text-gray-400">系統會自動加總各進度付款為已支出</p>
           </div>
 
           <div>

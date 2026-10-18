@@ -18,6 +18,7 @@ export default function WorksPage() {
   const [debouncedQ, setDebouncedQ] = useState('');
   const [data, setData] = useState([]);
   const [progressCounts, setProgressCounts] = useState({});
+  const [paidByWork, setPaidByWork] = useState({});
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -58,20 +59,24 @@ export default function WorksPage() {
       setData(rows || []);
       setTotal(count || 0);
 
-      // 每筆工作的進度筆數
+      // 每筆工作的進度筆數與已支出（進度付款加總）
       if (rows && rows.length > 0) {
         const { data: progressRows, error: progressError } = await supabase
           .from('work_progress')
-          .select('work_id')
+          .select('work_id, payment_amount')
           .in('work_id', rows.map((r) => r.id));
         if (progressError) throw progressError;
         const counts = {};
+        const paid = {};
         (progressRows || []).forEach((p) => {
           counts[p.work_id] = (counts[p.work_id] || 0) + 1;
+          paid[p.work_id] = (paid[p.work_id] || 0) + (Number(p.payment_amount) || 0);
         });
         setProgressCounts(counts);
+        setPaidByWork(paid);
       } else {
         setProgressCounts({});
+        setPaidByWork({});
       }
     } catch (err) {
       setError(err.message || '載入失敗');
@@ -228,10 +233,18 @@ export default function WorksPage() {
                     </span>
                     {progressCounts[item.id] > 0 && <span>📝 進度 {progressCounts[item.id]} 筆</span>}
                   </div>
+                  {(paidByWork[item.id] > 0 || item.total_amount != null) && (
+                    <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-500">
+                      <span>💰 已支出 {formatCurrency(paidByWork[item.id] || 0)}</span>
+                      {item.total_amount != null && (
+                        <span>／未支出 {formatCurrency(Number(item.total_amount) - (paidByWork[item.id] || 0))}</span>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-2">
-                  {item.cost != null && (
-                    <span className="text-sm font-semibold text-gray-700">{formatCurrency(item.cost)}</span>
+                  {item.total_amount != null && (
+                    <span className="text-sm font-semibold text-gray-700">{formatCurrency(item.total_amount)}</span>
                   )}
                   <svg className="h-4 w-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />

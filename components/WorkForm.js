@@ -26,7 +26,7 @@ export default function WorkForm({ mode = 'new', initial = {} }) {
     status: initial.status || 'completed',
     executor: initial.executor || '',
     location: initial.location || '',
-    cost: initial.cost != null ? String(initial.cost) : '',
+    total_amount: initial.total_amount != null ? String(initial.total_amount) : '',
     description: initial.description || '',
   });
   const [error, setError] = useState('');
@@ -75,7 +75,7 @@ export default function WorkForm({ mode = 'new', initial = {} }) {
         status: form.status,
         executor: form.executor.trim() || null,
         location: form.location.trim() || null,
-        cost: form.cost === '' ? null : Number(form.cost),
+        total_amount: form.total_amount === '' ? null : Number(form.total_amount),
         description: form.description.trim() || null,
       };
 
@@ -240,21 +240,22 @@ export default function WorkForm({ mode = 'new', initial = {} }) {
           </div>
 
           <div>
-            <label htmlFor="cost" className="label">
-              費用（NT$）
+            <label htmlFor="total_amount" className="label">
+              合約／預計總金額（NT$）
             </label>
             <input
-              id="cost"
+              id="total_amount"
               type="number"
               min="0"
               step="0.01"
               inputMode="decimal"
               className="input"
               placeholder="選填"
-              value={form.cost}
-              onChange={(e) => set('cost', e.target.value)}
+              value={form.total_amount}
+              onChange={(e) => set('total_amount', e.target.value)}
               disabled={saving}
             />
+            <p className="mt-1.5 text-xs text-gray-400">實際支出由各進度的付款自動加總</p>
           </div>
 
           <div className="sm:col-span-2">

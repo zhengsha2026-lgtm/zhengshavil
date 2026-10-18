@@ -74,6 +74,14 @@ Storage buckets：`property-files`、`work-files`（皆公開讀取、僅 admin 
 - 刪除主工作會串聯刪除進度與所有照片；刪除進度會串聯刪除其照片
 - 既有資料庫升級：執行 `supabase/migration-20261018-work-progress.sql`
 
+### 分次付款模型（2026-10-18 起）
+
+- 主工作填 `total_amount`（合約／預計總金額，選填）；進度紀錄填 `payment_amount`（本次付款，選填）
+- 已支出 = 該工作所有進度付款加總（同步寫入 `works.cost`，供首頁月支出統計使用）
+- 未支出 = total_amount − 已支出（僅有填總金額時顯示；負值代表超付）
+- 進度新增／編輯／刪除後自動同步已支出（`syncWorkCost`）
+- 既有資料庫升級：執行 `supabase/migration-20261018-payment.sql`
+
 ## 安全與權限（RLS）
 
 - `profiles`：使用者僅可讀自己；admin 可讀全部、可更新（改 role）
@@ -112,6 +120,7 @@ Storage buckets：`property-files`、`work-files`（皆公開讀取、僅 admin 
 
 ## 更新紀錄
 
+- 2026-10-18：工作紀錄支援分次付款（works 新增 total_amount、work_progress 新增 payment_amount；主工作表單以總金額取代手動費用、進度可記錄付款；列表與詳情顯示已支出／未支出、時間軸顯示每筆付款；cost 改為系統同步已支出；須執行 migration-20261018-payment.sql）
 - 2026-10-18：工作紀錄支援長時間工作與進度紀錄（works 拆分 start_date/end_date、新增 work_progress 表、attachments 增加 progress_id；列表顯示進行天數與進度筆數、詳情頁時間軸＋進度 CRUD；須執行 migration-20261018-work-progress.sql）
 - 2026-10-17：修正照片顯示（縮圖改固定高度 + object-cover，燈箱改 object-contain 完整顯示，改用 inline style 確保舊版手機瀏覽器相容）；新增「拍照」按鈕（手機可直接開啟相機，capture="environment"）
 - 2026-10-17：新增照片上傳前自動壓縮（browser-image-compression：最長邊 1600px、品質 0.75、目標 800KB 以下；壓縮失敗自動退回原始檔案；處理中顯示載入狀態）

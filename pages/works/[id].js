@@ -143,6 +143,9 @@ export default function WorkDetailPage() {
   }
 
   const days = record ? calcWorkDays(record.start_date, record.end_date) : 0;
+  // 已支出 = 所有進度付款加總；未支出 = 總金額 − 已支出（有填總金額時才顯示）
+  const paid = progressList.reduce((sum, p) => sum + (Number(p.payment_amount) || 0), 0);
+  const totalAmount = record?.total_amount != null ? Number(record.total_amount) : null;
 
   return (
     <Layout title={record ? record.title : '工作詳情'}>
@@ -212,7 +215,11 @@ export default function WorkDetailPage() {
               <Field label="結束日期">{record.end_date ? formatDate(record.end_date) : '－'}</Field>
               <Field label="執行者">{record.executor || '-'}</Field>
               <Field label="地點">{record.location || '-'}</Field>
-              <Field label="費用">{formatCurrency(record.cost)}</Field>
+              <Field label="總金額">{formatCurrency(totalAmount)}</Field>
+              <Field label="已支出">{formatCurrency(paid)}</Field>
+              {totalAmount != null && (
+                <Field label="未支出">{formatCurrency(totalAmount - paid)}</Field>
+              )}
               <Field label="更新時間">{formatDate(record.updated_at?.slice(0, 10))}</Field>
             </dl>
 
@@ -308,6 +315,12 @@ export default function WorkDetailPage() {
                     {p.description && (
                       <p className="mt-1.5 whitespace-pre-line text-sm leading-relaxed text-gray-600">
                         {p.description}
+                      </p>
+                    )}
+
+                    {Number(p.payment_amount) > 0 && (
+                      <p className="mt-1.5 inline-flex items-center gap-1 rounded-lg bg-accent-50 px-2 py-1 text-xs font-medium text-accent-700">
+                        💰 本次付款：{formatCurrency(p.payment_amount)}
                       </p>
                     )}
 
