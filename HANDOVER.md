@@ -133,6 +133,7 @@ Storage buckets：`property-files`、`work-files`（皆公開讀取、僅 admin 
 
 ## 更新紀錄
 
+- 2026-10-18：視覺強化（統計卡片淺色底＋左側色條：財產藍／工作紫／金額綠；列表卡片加色條、標題加粗、金額放大變色；狀態標籤飽和度提高；天數／筆數／支出改 info-tag 小標籤；篩選區改淺灰背景與列表區隔；新增 globals.css 通用樣式 card-bar／info-tag）
 - 2026-10-18：全站圖示統一改用 lucide-react（移除 @heroicons/react），建立 components/icons.js 圖示規範（StatIcon/EmptyIcon/ActionIcon/NavIcon），首頁統計卡片與空狀態圖示更新
 - 2026-10-18：工作紀錄支援分次付款（works 新增 total_amount、work_progress 新增 payment_amount；主工作表單以總金額取代手動費用、進度可記錄付款；列表與詳情顯示已支出／未支出、時間軸顯示每筆付款；cost 改為系統同步已支出；須執行 migration-20261018-payment.sql）
 - 2026-10-18：工作紀錄支援長時間工作與進度紀錄（works 拆分 start_date/end_date、新增 work_progress 表、attachments 增加 progress_id；列表顯示進行天數與進度筆數、詳情頁時間軸＋進度 CRUD；須執行 migration-20261018-work-progress.sql）

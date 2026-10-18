@@ -116,7 +116,7 @@ export default function WorksPage() {
       </div>
 
       {/* 篩選器 */}
-      <div className="card mb-4 p-4">
+      <div className="card mb-4 border-gray-100 bg-gray-50/80 p-4">
         <div className="relative">
           <svg
             className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
@@ -208,10 +208,10 @@ export default function WorksPage() {
       ) : (
         <div className="space-y-3">
           {data.map((item) => (
-            <Link key={item.id} href={`/works/${item.id}`} className="card block p-4 transition-shadow hover:shadow-soft">
+            <Link key={item.id} href={`/works/${item.id}`} className="card card-bar card-bar-purple block p-4 transition-shadow hover:shadow-soft">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <h2 className="truncate text-[15px] font-semibold text-gray-800">{item.title}</h2>
+                  <h2 className="truncate text-[15px] font-bold text-gray-800">{item.title}</h2>
                   <div className="mt-2 flex flex-wrap items-center gap-1.5">
                     <CategoryBadge>{item.category}</CategoryBadge>
                     <StatusBadge type="work" value={item.status} />
@@ -226,25 +226,29 @@ export default function WorksPage() {
                     {item.location && <span className="max-w-[180px] truncate">📍 {item.location}</span>}
                     {item.executor && <span>👷 {item.executor}</span>}
                   </div>
-                  <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-500">
-                    <span>
-                      {item.status === 'in_progress' ? '⏳ 已進行' : '✅ 共進行'}{' '}
-                      {calcWorkDays(item.start_date, item.end_date)} 天
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    <span
+                      className={`info-tag ${
+                        item.status === 'in_progress' ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'
+                      }`}
+                    >
+                      {item.status === 'in_progress' ? '已進行' : '共進行'} {calcWorkDays(item.start_date, item.end_date)} 天
                     </span>
-                    {progressCounts[item.id] > 0 && <span>📝 進度 {progressCounts[item.id]} 筆</span>}
+                    {progressCounts[item.id] > 0 && (
+                      <span className="info-tag bg-gray-100 text-gray-600">進度 {progressCounts[item.id]} 筆</span>
+                    )}
+                    {(paidByWork[item.id] > 0 || item.total_amount != null) && (
+                      <span className="info-tag bg-emerald-50 text-emerald-700">
+                        已支出 {formatCurrency(paidByWork[item.id] || 0)}
+                        {item.total_amount != null &&
+                          `／未支出 ${formatCurrency(Number(item.total_amount) - (paidByWork[item.id] || 0))}`}
+                      </span>
+                    )}
                   </div>
-                  {(paidByWork[item.id] > 0 || item.total_amount != null) && (
-                    <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-500">
-                      <span>💰 已支出 {formatCurrency(paidByWork[item.id] || 0)}</span>
-                      {item.total_amount != null && (
-                        <span>／未支出 {formatCurrency(Number(item.total_amount) - (paidByWork[item.id] || 0))}</span>
-                      )}
-                    </div>
-                  )}
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-2">
                   {item.total_amount != null && (
-                    <span className="text-sm font-semibold text-gray-700">{formatCurrency(item.total_amount)}</span>
+                    <span className="text-base font-bold text-accent-600">{formatCurrency(item.total_amount)}</span>
                   )}
                   <svg className="h-4 w-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />

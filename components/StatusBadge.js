@@ -1,13 +1,13 @@
 export default function StatusBadge({ type, value }) {
   const map = {
     property: {
-      in_use: 'bg-emerald-50 text-emerald-700',
+      in_use: 'bg-emerald-100 text-emerald-700',
       scrapped: 'bg-gray-100 text-gray-500',
-      lost: 'bg-red-50 text-red-600',
+      lost: 'bg-red-100 text-red-700',
     },
     work: {
-      in_progress: 'bg-amber-50 text-amber-700',
-      completed: 'bg-emerald-50 text-emerald-700',
+      in_progress: 'bg-amber-100 text-amber-800',
+      completed: 'bg-emerald-100 text-emerald-700',
     },
   };
   const labels = {

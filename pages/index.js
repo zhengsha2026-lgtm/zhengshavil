@@ -9,15 +9,20 @@ import { useUser } from '@/components/UserContext';
 import { StatIcon, EmptyIcon } from '@/components/icons';
 import { Package, Wrench, Banknote, ClipboardList } from 'lucide-react';
 
-function StatCard({ icon, label, value, sub }) {
+function StatCard({ icon, label, value, sub, tone = 'blue' }) {
+  const tones = {
+    blue: 'card-bar-blue bg-blue-50/50',
+    purple: 'card-bar-purple bg-accent-50/40',
+    green: 'card-bar-green bg-emerald-50/50',
+  };
   return (
-    <div className="card flex items-center gap-3.5 p-4">
-      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent-50">
+    <div className={`card card-bar flex items-center gap-3.5 p-4 ${tones[tone]}`}>
+      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/80">
         <StatIcon icon={icon} />
       </div>
       <div className="min-w-0">
         <p className="text-xs text-gray-400">{label}</p>
-        <p className="mt-0.5 truncate text-lg font-bold leading-snug text-gray-800">{value}</p>
+        <p className="mt-0.5 truncate text-xl font-bold leading-snug text-gray-800">{value}</p>
         {sub && <p className="text-[11px] text-gray-400">{sub}</p>}
       </div>
     </div>
@@ -128,10 +133,11 @@ export default function HomePage() {
         <>
           {/* 統計卡片 */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <StatCard icon={Package} label="財產總筆數" value={`${stats.propertyCount} 筆`} />
-            <StatCard icon={Wrench} label={`${monthName}工作筆數`} value={`${stats.monthWorks} 筆`} />
+            <StatCard icon={Package} tone="blue" label="財產總筆數" value={`${stats.propertyCount} 筆`} />
+            <StatCard icon={Wrench} tone="purple" label={`${monthName}工作筆數`} value={`${stats.monthWorks} 筆`} />
             <StatCard
               icon={Banknote}
+              tone="green"
               label={`${monthName}支出總額`}
               value={formatCurrency(stats.monthExpense)}
               sub="含財產採購與工作費用"
@@ -148,10 +154,10 @@ export default function HomePage() {
             ) : (
               <div className="space-y-3">
                 {recentProperties.map((item) => (
-                  <Link key={item.id} href={`/properties/${item.id}`} className="card block p-4 transition-shadow hover:shadow-soft">
+                  <Link key={item.id} href={`/properties/${item.id}`} className="card card-bar card-bar-blue block p-4 transition-shadow hover:shadow-soft">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <h3 className="truncate text-[15px] font-semibold text-gray-800">{item.name}</h3>
+                        <h3 className="truncate text-[15px] font-bold text-gray-800">{item.name}</h3>
                         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                           <CategoryBadge>{item.category}</CategoryBadge>
                           <StatusBadge type="property" value={item.status} />
@@ -160,7 +166,7 @@ export default function HomePage() {
                       </div>
                       <div className="shrink-0 text-right">
                         {item.amount != null && (
-                          <p className="text-sm font-semibold text-gray-700">{formatCurrency(item.amount)}</p>
+                          <p className="text-base font-bold text-blue-600">{formatCurrency(item.amount)}</p>
                         )}
                       </div>
                     </div>
@@ -180,10 +186,10 @@ export default function HomePage() {
             ) : (
               <div className="space-y-3">
                 {recentWorks.map((item) => (
-                  <Link key={item.id} href={`/works/${item.id}`} className="card block p-4 transition-shadow hover:shadow-soft">
+                  <Link key={item.id} href={`/works/${item.id}`} className="card card-bar card-bar-purple block p-4 transition-shadow hover:shadow-soft">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <h3 className="truncate text-[15px] font-semibold text-gray-800">{item.title}</h3>
+                        <h3 className="truncate text-[15px] font-bold text-gray-800">{item.title}</h3>
                         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                           <CategoryBadge>{item.category}</CategoryBadge>
                           <StatusBadge type="work" value={item.status} />
@@ -196,7 +202,7 @@ export default function HomePage() {
                       </div>
                       <div className="shrink-0 text-right">
                         {item.cost != null && (
-                          <p className="text-sm font-semibold text-gray-700">{formatCurrency(item.cost)}</p>
+                          <p className="text-base font-bold text-accent-600">{formatCurrency(item.cost)}</p>
                         )}
                       </div>
                     </div>
