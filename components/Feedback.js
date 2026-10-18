@@ -23,7 +23,11 @@ export function LoadingPage({ text = '載入中…' }) {
 export function EmptyState({ icon = '📭', title = '沒有資料', description = '' }) {
   return (
     <div className="flex flex-col items-center justify-center gap-2 py-16 text-gray-400">
-      <span className="text-4xl">{icon}</span>
+      {typeof icon === 'string' ? (
+        <span className="text-4xl">{icon}</span>
+      ) : (
+        <span className="flex h-12 w-12 items-center justify-center">{icon}</span>
+      )}
       <p className="text-sm font-medium text-gray-500">{title}</p>
       {description && <p className="text-xs">{description}</p>}
     </div>
