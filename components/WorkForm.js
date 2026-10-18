@@ -21,7 +21,8 @@ export default function WorkForm({ mode = 'new', initial = {} }) {
   const [form, setForm] = useState({
     title: initial.title || '',
     category: initial.category || '',
-    work_date: initial.work_date || todayStr(),
+    start_date: initial.start_date || todayStr(),
+    end_date: initial.end_date || '',
     status: initial.status || 'completed',
     executor: initial.executor || '',
     location: initial.location || '',
@@ -51,6 +52,16 @@ export default function WorkForm({ mode = 'new', initial = {} }) {
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
+    if (!form.start_date) {
+      setError('請選擇開始日期');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    if (form.end_date && form.end_date < form.start_date) {
+      setError('結束日期不能早於開始日期');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
 
     setSaving(true);
     setError('');
@@ -59,7 +70,8 @@ export default function WorkForm({ mode = 'new', initial = {} }) {
       const payload = {
         title: form.title.trim(),
         category: form.category,
-        work_date: form.work_date || null,
+        start_date: form.start_date,
+        end_date: form.end_date || null,
         status: form.status,
         executor: form.executor.trim() || null,
         location: form.location.trim() || null,
@@ -143,15 +155,31 @@ export default function WorkForm({ mode = 'new', initial = {} }) {
           </div>
 
           <div>
-            <label htmlFor="work_date" className="label">
-              工作日期
+            <label htmlFor="start_date" className="label">
+              開始日期 <span className="text-red-500">*</span>
             </label>
             <input
-              id="work_date"
+              id="start_date"
               type="date"
               className="input"
-              value={form.work_date}
-              onChange={(e) => set('work_date', e.target.value)}
+              value={form.start_date}
+              onChange={(e) => set('start_date', e.target.value)}
+              disabled={saving}
+              required
+            />
+          </div>
+
+          <div>
+            <label htmlFor="end_date" className="label">
+              結束日期
+            </label>
+            <input
+              id="end_date"
+              type="date"
+              className="input"
+              value={form.end_date}
+              min={form.start_date || undefined}
+              onChange={(e) => set('end_date', e.target.value)}
               disabled={saving}
             />
           </div>

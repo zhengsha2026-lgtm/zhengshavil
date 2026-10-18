@@ -35,7 +35,8 @@ export default function EditWorkPage() {
           setError('找不到此工作紀錄');
           return;
         }
-        const attachments = await fetchAttachments('works', id);
+        // 僅載入主工作照片（進度照片於詳情頁的進度紀錄管理）
+        const attachments = await fetchAttachments('works', id, { mainOnly: true });
         if (cancelled) return;
         setInitial({ ...data, attachments });
       } catch (err) {

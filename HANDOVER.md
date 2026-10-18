@@ -60,15 +60,24 @@ npm run dev
 |--------|------|
 | `profiles` | 使用者資料（full_name、role: admin/viewer） |
 | `properties` | 財產（名稱、分類、數量、取得日期/方式、金額、位置、狀態） |
-| `works` | 工作紀錄（標題、分類、日期、地點、說明、執行者、費用、狀態） |
-| `attachments` | 照片附件（關聯 properties/works、file_path、caption） |
+| `works` | 主工作（標題、分類、開始/結束日期、地點、說明、執行者、費用、狀態） |
+| `work_progress` | 工作進度紀錄（關聯 works、進度日期、說明） |
+| `attachments` | 照片附件（關聯 properties/works、file_path、caption、可選 progress_id 關聯進度） |
 
 Storage buckets：`property-files`、`work-files`（皆公開讀取、僅 admin 可上傳）
+
+### 工作紀錄模型（2026-10-18 起）
+
+- 一筆主工作（`works`）＋多筆進度紀錄（`work_progress`），支援長時間工作
+- 進行天數計算（含頭尾）：進行中 = 今天 − start_date；已完成 = end_date − start_date（無 end_date 用今天）
+- 進度照片：`attachments.progress_id` 關聯；主工作照片：`progress_id` 為 null
+- 刪除主工作會串聯刪除進度與所有照片；刪除進度會串聯刪除其照片
+- 既有資料庫升級：執行 `supabase/migration-20261018-work-progress.sql`
 
 ## 安全與權限（RLS）
 
 - `profiles`：使用者僅可讀自己；admin 可讀全部、可更新（改 role）
-- `properties` / `works` / `attachments`：所有登入者可 SELECT；僅 admin 可 INSERT / UPDATE / DELETE
+- `properties` / `works` / `work_progress` / `attachments`：所有登入者可 SELECT；僅 admin 可 INSERT / UPDATE / DELETE
 - Storage：兩個 bucket 公開讀取；僅 admin 可上傳／刪除
 
 ## 程式結構
@@ -85,8 +94,9 @@ Storage buckets：`property-files`、`work-files`（皆公開讀取、僅 admin 
 │   ├── Layout.js           # 版面（頂部導覽＋手機底部導覽列）
 │   ├── UserContext.js      # 登入狀態與角色
 │   ├── PropertyForm.js     # 財產新增/編輯表單
-│   ├── WorkForm.js         # 工作新增/編輯表單
-│   ├── AttachmentEditor.js # 照片上傳元件（caption 標示）
+│   ├── WorkForm.js         # 工作新增/編輯表單（start/end 日期）
+│   ├── ProgressFormModal.js # 進度紀錄新增/編輯 modal（時間軸用）
+│   ├── AttachmentEditor.js # 照片上傳元件（caption 標示、自動壓縮）
 │   ├── PhotoWall.js        # 照片牆（點擊放大燈箱）
 │   ├── ConfirmDialog.js    # 刪除二次確認
 │   ├── Pagination.js       # 分頁
@@ -102,5 +112,6 @@ Storage buckets：`property-files`、`work-files`（皆公開讀取、僅 admin 
 
 ## 更新紀錄
 
+- 2026-10-18：工作紀錄支援長時間工作與進度紀錄（works 拆分 start_date/end_date、新增 work_progress 表、attachments 增加 progress_id；列表顯示進行天數與進度筆數、詳情頁時間軸＋進度 CRUD；須執行 migration-20261018-work-progress.sql）
 - 2026-10-17：修正照片顯示（縮圖改固定高度 + object-cover，燈箱改 object-contain 完整顯示，改用 inline style 確保舊版手機瀏覽器相容）；新增「拍照」按鈕（手機可直接開啟相機，capture="environment"）
 - 2026-10-17：新增照片上傳前自動壓縮（browser-image-compression：最長邊 1600px、品質 0.75、目標 800KB 以下；壓縮失敗自動退回原始檔案；處理中顯示載入狀態）

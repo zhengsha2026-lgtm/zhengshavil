@@ -4,7 +4,7 @@ import Layout from '@/components/Layout';
 import { useUser } from '@/components/UserContext';
 import { createClient } from '@/lib/supabaseBrowser';
 import { WORK_CATEGORIES, WORK_STATUS_OPTIONS, PAGE_SIZE } from '@/lib/constants';
-import { formatDate, formatCurrency } from '@/lib/format';
+import { formatDate, formatCurrency, calcWorkDays } from '@/lib/format';
 import { escapeSearchKeyword } from '@/lib/api';
 import StatusBadge, { CategoryBadge } from '@/components/StatusBadge';
 import Pagination from '@/components/Pagination';
@@ -17,6 +17,7 @@ export default function WorksPage() {
   const [filters, setFilters] = useState(initialFilters);
   const [debouncedQ, setDebouncedQ] = useState('');
   const [data, setData] = useState([]);
+  const [progressCounts, setProgressCounts] = useState({});
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -40,15 +41,15 @@ export default function WorksPage() {
 
       if (filters.category) query = query.eq('category', filters.category);
       if (filters.status) query = query.eq('status', filters.status);
-      if (filters.dateFrom) query = query.gte('work_date', filters.dateFrom);
-      if (filters.dateTo) query = query.lte('work_date', filters.dateTo);
+      if (filters.dateFrom) query = query.gte('start_date', filters.dateFrom);
+      if (filters.dateTo) query = query.lte('start_date', filters.dateTo);
       const kw = escapeSearchKeyword(debouncedQ);
       if (kw) {
         query = query.or(`title.ilike.%${kw}%,location.ilike.%${kw}%,description.ilike.%${kw}%`);
       }
 
       query = query
-        .order('work_date', { ascending: false, nullsFirst: false })
+        .order('start_date', { ascending: false, nullsFirst: false })
         .order('created_at', { ascending: false })
         .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
 
@@ -56,6 +57,22 @@ export default function WorksPage() {
       if (queryError) throw queryError;
       setData(rows || []);
       setTotal(count || 0);
+
+      // 每筆工作的進度筆數
+      if (rows && rows.length > 0) {
+        const { data: progressRows, error: progressError } = await supabase
+          .from('work_progress')
+          .select('work_id')
+          .in('work_id', rows.map((r) => r.id));
+        if (progressError) throw progressError;
+        const counts = {};
+        (progressRows || []).forEach((p) => {
+          counts[p.work_id] = (counts[p.work_id] || 0) + 1;
+        });
+        setProgressCounts(counts);
+      } else {
+        setProgressCounts({});
+      }
     } catch (err) {
       setError(err.message || '載入失敗');
     } finally {
@@ -148,14 +165,14 @@ export default function WorksPage() {
             className="input"
             value={filters.dateFrom}
             onChange={(e) => set('dateFrom', e.target.value)}
-            aria-label="工作日期起"
+            aria-label="開始日期起"
           />
           <input
             type="date"
             className="input"
             value={filters.dateTo}
             onChange={(e) => set('dateTo', e.target.value)}
-            aria-label="工作日期迄"
+            aria-label="開始日期迄"
           />
         </div>
 
@@ -195,9 +212,21 @@ export default function WorksPage() {
                     <StatusBadge type="work" value={item.status} />
                   </div>
                   <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
-                    {item.work_date && <span>{formatDate(item.work_date)}</span>}
+                    {item.start_date && (
+                      <span>
+                        {formatDate(item.start_date)}
+                        {item.end_date ? ` ~ ${formatDate(item.end_date)}` : ''}
+                      </span>
+                    )}
                     {item.location && <span className="max-w-[180px] truncate">📍 {item.location}</span>}
                     {item.executor && <span>👷 {item.executor}</span>}
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-500">
+                    <span>
+                      {item.status === 'in_progress' ? '⏳ 已進行' : '✅ 共進行'}{' '}
+                      {calcWorkDays(item.start_date, item.end_date)} 天
+                    </span>
+                    {progressCounts[item.id] > 0 && <span>📝 進度 {progressCounts[item.id]} 筆</span>}
                   </div>
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-2">

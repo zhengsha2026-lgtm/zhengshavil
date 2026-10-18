@@ -34,12 +34,23 @@ create table if not exists public.works (
   id uuid default gen_random_uuid() primary key,
   title text not null,
   category text not null,
-  work_date date,
+  start_date date not null,
+  end_date date,
   location text,
   description text,
   executor text,
   cost numeric,
   status text default 'completed' check (status in ('in_progress', 'completed')),
+  created_by uuid references profiles(id),
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+create table if not exists public.work_progress (
+  id uuid default gen_random_uuid() primary key,
+  work_id uuid references public.works(id) on delete cascade not null,
+  progress_date date not null,
+  description text,
   created_by uuid references profiles(id),
   created_at timestamptz default now(),
   updated_at timestamptz default now()
@@ -52,14 +63,17 @@ create table if not exists public.attachments (
   file_path text not null,
   file_type text default 'image',
   caption text,
+  progress_id uuid references public.work_progress(id) on delete cascade,
   created_at timestamptz default now()
 );
 
 create index if not exists attachments_related_idx on public.attachments (related_table, related_id);
+create index if not exists attachments_progress_idx on public.attachments (progress_id);
 create index if not exists properties_category_idx on public.properties (category);
 create index if not exists properties_acquired_date_idx on public.properties (acquired_date);
 create index if not exists works_category_idx on public.works (category);
-create index if not exists works_work_date_idx on public.works (work_date);
+create index if not exists works_start_date_idx on public.works (start_date);
+create index if not exists work_progress_work_idx on public.work_progress (work_id, progress_date);
 
 -- -----------------------------------------------------
 -- 2. updated_at 自動更新
@@ -83,6 +97,11 @@ create trigger properties_updated_at
 drop trigger if exists works_updated_at on public.works;
 create trigger works_updated_at
   before update on public.works
+  for each row execute function public.handle_updated_at();
+
+drop trigger if exists work_progress_updated_at on public.work_progress;
+create trigger work_progress_updated_at
+  before update on public.work_progress
   for each row execute function public.handle_updated_at();
 
 -- -----------------------------------------------------
@@ -120,6 +139,7 @@ create trigger on_auth_user_created
 alter table public.profiles enable row level security;
 alter table public.properties enable row level security;
 alter table public.works enable row level security;
+alter table public.work_progress enable row level security;
 alter table public.attachments enable row level security;
 
 -- 管理員判斷函式
@@ -199,6 +219,31 @@ create policy "works_update_admin"
 drop policy if exists "works_delete_admin" on public.works;
 create policy "works_delete_admin"
   on public.works for delete
+  to authenticated
+  using (public.is_admin());
+
+-- work_progress：登入者可讀；僅 admin 可寫
+drop policy if exists "work_progress_select_authenticated" on public.work_progress;
+create policy "work_progress_select_authenticated"
+  on public.work_progress for select
+  to authenticated
+  using (true);
+
+drop policy if exists "work_progress_insert_admin" on public.work_progress;
+create policy "work_progress_insert_admin"
+  on public.work_progress for insert
+  to authenticated
+  with check (public.is_admin());
+
+drop policy if exists "work_progress_update_admin" on public.work_progress;
+create policy "work_progress_update_admin"
+  on public.work_progress for update
+  to authenticated
+  using (public.is_admin());
+
+drop policy if exists "work_progress_delete_admin" on public.work_progress;
+create policy "work_progress_delete_admin"
+  on public.work_progress for delete
   to authenticated
   using (public.is_admin());
 

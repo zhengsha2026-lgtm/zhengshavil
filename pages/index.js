@@ -60,8 +60,8 @@ export default function HomePage() {
           supabase
             .from('works')
             .select('id, cost')
-            .gte('work_date', from)
-            .lte('work_date', to),
+            .gte('start_date', from)
+            .lte('start_date', to),
           supabase
             .from('properties')
             .select('id, amount')
@@ -187,7 +187,8 @@ export default function HomePage() {
                           <StatusBadge type="work" value={item.status} />
                         </div>
                         <p className="mt-1.5 text-xs text-gray-400">
-                          {formatDate(item.work_date)}
+                          {formatDate(item.start_date)}
+                          {item.end_date ? ` ~ ${formatDate(item.end_date)}` : ''}
                           {item.location ? ` · ${item.location}` : ''}
                         </p>
                       </div>
