@@ -391,6 +391,7 @@ export default function WorkDetailPage() {
       {progressModal && (
         <ProgressFormModal
           workId={record?.id}
+          work={record}
           progress={progressModal.progress}
           attachments={progressModal.attachments || []}
           onClose={() => setProgressModal(null)}

@@ -11,12 +11,17 @@ const BUCKET = 'work-files';
  * 進度紀錄新增／編輯 modal
  * - progress: null 表示新增；傳入進度物件表示編輯
  * - attachments: 編輯時該進度的既有附件
+ * - work: 主工作紀錄（供完工勾選更新狀態與結束日期）
  * - onSaved: 儲存成功後回呼（父層重新載入資料）
  * 建議由父層條件式渲染，確保每次開啟都是全新狀態
  */
-export default function ProgressFormModal({ workId, progress = null, attachments = [], onClose, onSaved }) {
+export default function ProgressFormModal({ workId, work = null, progress = null, attachments = [], onClose, onSaved }) {
   const { user } = useUser();
   const isEdit = !!progress;
+
+  // 此進度是否為當初的結案進度（主工作已完工且結束日期＝進度日期）
+  const isCompletionInitially =
+    isEdit && work?.status === 'completed' && !!work?.end_date && progress.progress_date === work.end_date;
 
   const [form, setForm] = useState({
     progress_date: progress?.progress_date || todayStr(),
@@ -26,6 +31,8 @@ export default function ProgressFormModal({ workId, progress = null, attachments
         ? String(progress.payment_amount)
         : '',
   });
+  const [markComplete, setMarkComplete] = useState(isCompletionInitially);
+  const [completeDate, setCompleteDate] = useState(work?.end_date || progress?.progress_date || todayStr());
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const attachmentsRef = useRef({ existing: attachments, pending: [] });
@@ -43,6 +50,16 @@ export default function ProgressFormModal({ workId, progress = null, attachments
     if (!form.progress_date) {
       setError('請選擇進度日期');
       return;
+    }
+    if (markComplete) {
+      if (!completeDate) {
+        setError('請選擇結束日期');
+        return;
+      }
+      if (work?.start_date && completeDate < work.start_date) {
+        setError('結束日期不能早於開始日期');
+        return;
+      }
     }
 
     setSaving(true);
@@ -84,6 +101,22 @@ export default function ProgressFormModal({ workId, progress = null, attachments
 
       // 同步主工作已支出（cost = 進度付款加總）
       await syncWorkCost(workId);
+
+      // 本次為完工：同步主工作狀態與結束日期
+      if (markComplete) {
+        const { error: workError } = await supabase
+          .from('works')
+          .update({ status: 'completed', end_date: completeDate })
+          .eq('id', workId);
+        if (workError) throw new Error(`更新工作狀態失敗：${workError.message}`);
+      } else if (isCompletionInitially) {
+        // 取消勾選結案：主工作回到進行中、清空結束日期
+        const { error: workError } = await supabase
+          .from('works')
+          .update({ status: 'in_progress', end_date: null })
+          .eq('id', workId);
+        if (workError) throw new Error(`更新工作狀態失敗：${workError.message}`);
+      }
 
       onSaved?.();
     } catch (err) {
@@ -166,6 +199,53 @@ export default function ProgressFormModal({ workId, progress = null, attachments
               disabled={saving}
             />
             <p className="mt-1.5 text-xs text-gray-400">系統會自動加總各進度付款為已支出</p>
+          </div>
+
+          {/* 本次為完工 */}
+          <div
+            className={`rounded-xl border p-3.5 transition-colors ${
+              markComplete ? 'border-emerald-300 bg-emerald-50/60' : 'border-gray-200'
+            }`}
+          >
+            <label className="flex cursor-pointer select-none items-center gap-2.5">
+              <input
+                type="checkbox"
+                className="h-5 w-5 shrink-0 cursor-pointer accent-emerald-600"
+                checked={markComplete}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setMarkComplete(checked);
+                  // 勾選時預設帶入本次進度日期
+                  if (checked && !completeDate) {
+                    setCompleteDate(form.progress_date || todayStr());
+                  }
+                }}
+                disabled={saving}
+              />
+              <span className="text-sm font-semibold text-gray-800">本次為完工</span>
+              <span className="text-xs text-gray-400">（儲存後自動結案）</span>
+            </label>
+
+            {markComplete && (
+              <div className="mt-3 border-t border-emerald-100 pt-3">
+                <label htmlFor="complete_date" className="label">
+                  結束日期 <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="complete_date"
+                  type="date"
+                  className="input"
+                  value={completeDate}
+                  min={work?.start_date || undefined}
+                  onChange={(e) => setCompleteDate(e.target.value)}
+                  disabled={saving}
+                  required
+                />
+                <p className="mt-1.5 text-xs text-gray-400">
+                  儲存時主工作將標記為「已完成」並填入此結束日期
+                </p>
+              </div>
+            )}
           </div>
 
           <div>
