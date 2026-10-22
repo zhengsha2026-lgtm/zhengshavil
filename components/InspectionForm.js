@@ -7,16 +7,19 @@ import { useUser } from '@/components/UserContext';
 import { todayStr } from '@/lib/format';
 
 const BUCKET = 'inspection-files';
+const STAGE_OPTIONS = ['初勘', '複勘', '完工會勘'];
 
 /**
  * 會勘紀錄新增／編輯表單
  * mode: 'new' | 'edit'
  * initial: 會勘資料（含 attachments）— 編輯模式必填
- * defaultWorkId: 預設關聯的工作（從工作詳情頁進入時自動帶入）
+ * defaultCaseId: 預設所屬案件（從案件詳情頁進入時自動帶入）
+ * quickWorkId: 快速建立新案件時自動關聯的工作（從工作詳情頁進入時帶入）
  */
-export default function InspectionForm({ mode = 'new', initial = {}, defaultWorkId = null }) {
+export default function InspectionForm({ mode = 'new', initial = {}, defaultCaseId = null, quickWorkId = null }) {
   const router = useRouter();
   const { user } = useUser();
+  const isEdit = mode === 'edit';
 
   const [form, setForm] = useState({
     title: initial.title || '',
@@ -26,9 +29,12 @@ export default function InspectionForm({ mode = 'new', initial = {}, defaultWork
     description: initial.description || '',
     conclusion: initial.conclusion || '',
     notes: initial.notes || '',
-    work_id: initial.work_id || defaultWorkId || '',
+    stage: initial.stage || '',
   });
-  const [works, setWorks] = useState([]); // 可關聯的工作清單
+  const [cases, setCases] = useState([]); // 可選擇的既有案件
+  const [caseMode, setCaseMode] = useState(isEdit || defaultCaseId ? 'existing' : 'existing'); // existing | new
+  const [caseId, setCaseId] = useState(initial.case_id || defaultCaseId || '');
+  const [newCaseTitle, setNewCaseTitle] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const attachmentsRef = useRef({
@@ -36,25 +42,23 @@ export default function InspectionForm({ mode = 'new', initial = {}, defaultWork
     pending: [],
   });
 
-  // 載入可關聯的工作清單（最近 100 筆，依開始日期新到舊）
+  // 載入可選擇的案件清單（最近 100 筆）
   useEffect(() => {
-    async function loadWorks() {
+    async function loadCases() {
       try {
         const supabase = createClient();
-        const { data, error: worksError } = await supabase
-          .from('works')
-          .select('id, title, start_date')
-          .order('start_date', { ascending: false, nullsFirst: false })
+        const { data, error: casesError } = await supabase
+          .from('cases')
+          .select('id, title, status')
           .order('created_at', { ascending: false })
           .limit(100);
-        if (worksError) throw worksError;
-        setWorks(data || []);
+        if (casesError) throw casesError;
+        setCases(data || []);
       } catch (err) {
-        // 關聯工作載入失敗不阻擋表單填寫
-        console.error('載入工作清單失敗：', err);
+        console.error('載入案件清單失敗：', err);
       }
     }
-    loadWorks();
+    loadCases();
   }, []);
 
   function set(field, value) {
@@ -73,12 +77,42 @@ export default function InspectionForm({ mode = 'new', initial = {}, defaultWork
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
+    if (caseMode === 'new' && !newCaseTitle.trim()) {
+      setError('請輸入新案件名稱，或改為選擇既有案件');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    if (caseMode === 'existing' && !caseId) {
+      setError('請選擇所屬案件，或切換為快速建立新案件');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
 
     setSaving(true);
     setError('');
     try {
       const supabase = createClient();
+
+      // 1. 決定所屬案件（必要時快速建立新案件，不跳頁）
+      let finalCaseId = caseId;
+      if (caseMode === 'new') {
+        const casePayload = {
+          title: newCaseTitle.trim(),
+          work_id: quickWorkId || null,
+        };
+        casePayload.created_by = user?.id || null;
+        const { data: caseData, error: caseError } = await supabase
+          .from('cases')
+          .insert(casePayload)
+          .select('id')
+          .single();
+        if (caseError) throw new Error(`建立案件失敗：${caseError.message}`);
+        finalCaseId = caseData.id;
+      }
+
+      // 2. 儲存會勘
       const payload = {
+        case_id: finalCaseId,
         title: form.title.trim(),
         inspection_date: form.inspection_date,
         location: form.location.trim() || null,
@@ -86,15 +120,12 @@ export default function InspectionForm({ mode = 'new', initial = {}, defaultWork
         description: form.description.trim() || null,
         conclusion: form.conclusion.trim() || null,
         notes: form.notes.trim() || null,
-        work_id: form.work_id || null,
+        stage: form.stage.trim() || null,
       };
 
       let recordId = initial.id;
-      if (mode === 'edit') {
-        const { error: updateError } = await supabase
-          .from('inspections')
-          .update(payload)
-          .eq('id', recordId);
+      if (isEdit) {
+        const { error: updateError } = await supabase.from('inspections').update(payload).eq('id', recordId);
         if (updateError) throw new Error(updateError.message);
       } else {
         payload.created_by = user?.id || null;
@@ -107,6 +138,7 @@ export default function InspectionForm({ mode = 'new', initial = {}, defaultWork
         recordId = data.id;
       }
 
+      // 3. 照片附件
       await saveAttachments({
         relatedTable: 'inspections',
         relatedId: recordId,
@@ -125,6 +157,75 @@ export default function InspectionForm({ mode = 'new', initial = {}, defaultWork
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {error && <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>}
+
+      {/* 所屬案件 */}
+      <section className="card p-5">
+        <h2 className="mb-4 text-sm font-semibold text-gray-800">
+          所屬案件 <span className="text-red-500">*</span>
+        </h2>
+
+        <div className="mb-3 flex gap-2">
+          <button
+            type="button"
+            onClick={() => setCaseMode('existing')}
+            disabled={saving}
+            className={`flex-1 rounded-xl px-3 py-2 text-xs font-semibold transition-colors ${
+              caseMode === 'existing'
+                ? 'bg-accent-600 text-white'
+                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+            }`}
+          >
+            選擇既有案件
+          </button>
+          <button
+            type="button"
+            onClick={() => setCaseMode('new')}
+            disabled={saving}
+            className={`flex-1 rounded-xl px-3 py-2 text-xs font-semibold transition-colors ${
+              caseMode === 'new'
+                ? 'bg-accent-600 text-white'
+                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+            }`}
+          >
+            快速建立新案件
+          </button>
+        </div>
+
+        {caseMode === 'existing' ? (
+          <div>
+            <select
+              className="input"
+              value={caseId}
+              onChange={(e) => setCaseId(e.target.value)}
+              disabled={saving}
+              aria-label="所屬案件"
+            >
+              <option value="">請選擇案件</option>
+              {cases.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.title}
+                  {c.status === 'completed' ? '（已結案）' : ''}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1.5 text-xs text-gray-400">列表顯示最近 100 筆案件</p>
+          </div>
+        ) : (
+          <div>
+            <input
+              type="text"
+              className="input"
+              placeholder="新案件名稱，例如：中山路巷口路面損壞案"
+              value={newCaseTitle}
+              onChange={(e) => setNewCaseTitle(e.target.value)}
+              disabled={saving}
+            />
+            <p className="mt-1.5 text-xs text-gray-400">
+              儲存時自動建立案件，無需另外操作{quickWorkId ? '，並自動關聯此工作' : ''}
+            </p>
+          </div>
+        )}
+      </section>
 
       {/* 基本資料 */}
       <section className="card p-5">
@@ -161,6 +262,27 @@ export default function InspectionForm({ mode = 'new', initial = {}, defaultWork
           </div>
 
           <div>
+            <label htmlFor="stage" className="label">
+              會勘階段
+            </label>
+            <input
+              id="stage"
+              type="text"
+              className="input"
+              list="stage-options"
+              placeholder="初勘、複勘、完工會勘或自由輸入"
+              value={form.stage}
+              onChange={(e) => set('stage', e.target.value)}
+              disabled={saving}
+            />
+            <datalist id="stage-options">
+              {STAGE_OPTIONS.map((s) => (
+                <option key={s} value={s} />
+              ))}
+            </datalist>
+          </div>
+
+          <div className="sm:col-span-2">
             <label htmlFor="location" className="label">
               地點
             </label>
@@ -241,29 +363,6 @@ export default function InspectionForm({ mode = 'new', initial = {}, defaultWork
             />
           </div>
         </div>
-      </section>
-
-      {/* 關聯工作 */}
-      <section className="card p-5">
-        <h2 className="mb-4 text-sm font-semibold text-gray-800">關聯工作（選填）</h2>
-        <select
-          className="input"
-          value={form.work_id}
-          onChange={(e) => set('work_id', e.target.value)}
-          disabled={saving}
-          aria-label="關聯工作"
-        >
-          <option value="">不關聯任何工作</option>
-          {works.map((w) => (
-            <option key={w.id} value={w.id}>
-              {w.title}
-              {w.start_date ? `（${w.start_date}）` : ''}
-            </option>
-          ))}
-        </select>
-        <p className="mt-1.5 text-xs text-gray-400">
-          若會勘與某項工程／工作相關（如劃設標線、施工），可選擇關聯；工作詳情頁也會顯示此會勘
-        </p>
       </section>
 
       {/* 照片附件 */}

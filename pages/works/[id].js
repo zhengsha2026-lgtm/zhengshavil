@@ -34,7 +34,7 @@ export default function WorkDetailPage() {
   const [record, setRecord] = useState(null);
   const [photos, setPhotos] = useState([]);
   const [progressList, setProgressList] = useState([]);
-  const [inspections, setInspections] = useState([]);
+  const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -67,8 +67,8 @@ export default function WorkDetailPage() {
       }
       setRecord(data);
 
-      // 主工作照片 + 進度紀錄（含各自的進度照片）+ 關聯會勘一次讀取
-      const [attachments, progressRes, inspectionRes] = await Promise.all([
+      // 主工作照片 + 進度紀錄（含各自的進度照片）+ 關聯案件一次讀取
+      const [attachments, progressRes, caseRes] = await Promise.all([
         fetchAttachments('works', id),
         supabase
           .from('work_progress')
@@ -77,15 +77,14 @@ export default function WorkDetailPage() {
           .order('progress_date', { ascending: false })
           .order('created_at', { ascending: false }),
         supabase
-          .from('inspections')
-          .select('id, title, inspection_date, location')
+          .from('cases')
+          .select('id, title, status, inspections(count)')
           .eq('work_id', id)
-          .order('inspection_date', { ascending: false, nullsFirst: false })
           .order('created_at', { ascending: false }),
       ]);
       if (progressRes.error) throw progressRes.error;
-      if (inspectionRes.error) throw inspectionRes.error;
-      setInspections(inspectionRes.data || []);
+      if (caseRes.error) throw caseRes.error;
+      setCases(caseRes.data || []);
 
       const toPhoto = (a) => ({
         id: a.id,
@@ -344,42 +343,57 @@ export default function WorkDetailPage() {
             )}
           </div>
 
-          {/* 相關會勘 */}
+          {/* 相關案件 */}
           <div className="card p-5">
             <div className="mb-4 flex items-center justify-between gap-3">
-              <h2 className="text-sm font-semibold text-gray-800">相關會勘（{inspections.length} 筆）</h2>
+              <h2 className="text-sm font-semibold text-gray-800">相關案件（{cases.length} 筆）</h2>
               {isAdmin && (
-                <Link
-                  href={`/inspections/new?work_id=${record.id}`}
-                  className="btn-primary !px-3.5 !py-2 text-sm"
-                >
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                  </svg>
-                  新增會勘
-                </Link>
+                <div className="flex gap-2">
+                  <Link href={`/cases/new?work_id=${record.id}`} className="btn-secondary !px-3.5 !py-2 text-sm">
+                    新增案件
+                  </Link>
+                  <Link
+                    href={`/inspections/new?work_id=${record.id}`}
+                    className="btn-primary !px-3.5 !py-2 text-sm"
+                  >
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                    </svg>
+                    新增會勘
+                  </Link>
+                </div>
               )}
             </div>
 
-            {inspections.length === 0 ? (
+            {cases.length === 0 ? (
               <p className="py-6 text-center text-xs text-gray-400">
-                此工作尚無關聯的會勘紀錄
-                {isAdmin ? '，可點擊「新增會勘」記錄現場勘查' : ''}
+                此工作尚無關聯的案件
+                {isAdmin ? '，可點擊「新增會勘」於表單內快速建立案件' : ''}
               </p>
             ) : (
               <div className="space-y-2.5">
-                {inspections.map((insp) => (
+                {cases.map((c) => (
                   <Link
-                    key={insp.id}
-                    href={`/inspections/${insp.id}`}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-gray-100 px-4 py-3 transition-colors hover:border-teal-200 hover:bg-teal-50/40"
+                    key={c.id}
+                    href={`/cases/${c.id}`}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-gray-100 px-4 py-3 transition-colors hover:border-indigo-200 hover:bg-indigo-50/40"
                   >
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-gray-800">{insp.title}</p>
-                      <p className="mt-0.5 text-xs text-gray-400">
-                        {formatDate(insp.inspection_date)}
-                        {insp.location ? ` · ${insp.location}` : ''}
-                      </p>
+                      <p className="truncate text-sm font-semibold text-gray-800">{c.title}</p>
+                      <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                        <span
+                          className={`info-tag ${
+                            c.status === 'in_progress'
+                              ? 'bg-amber-50 text-amber-700'
+                              : 'bg-emerald-50 text-emerald-700'
+                          }`}
+                        >
+                          {c.status === 'in_progress' ? '進行中' : '已結案'}
+                        </span>
+                        <span className="info-tag bg-teal-50 text-teal-700">
+                          會勘 {c.inspections?.[0]?.count ?? 0} 次
+                        </span>
+                      </div>
                     </div>
                     <svg className="h-4 w-4 shrink-0 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />

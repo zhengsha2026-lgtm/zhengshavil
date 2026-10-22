@@ -25,6 +25,7 @@ export default function InspectionDetailPage() {
   const router = useRouter();
   const { isAdmin, loading: userLoading } = useUser();
   const [record, setRecord] = useState(null);
+  const [caseRecord, setCaseRecord] = useState(null); // 所屬案件
   const [work, setWork] = useState(null); // 關聯的工作
   const [photos, setPhotos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -53,15 +54,29 @@ export default function InspectionDetailPage() {
       }
       setRecord(data);
 
-      // 關聯工作與附件
-      const [workRes, attachments] = await Promise.all([
-        data.work_id
-          ? supabase.from('works').select('id, title, status').eq('id', data.work_id).maybeSingle()
+      // 所屬案件與附件
+      const [caseRes, attachments] = await Promise.all([
+        data.case_id
+          ? supabase.from('cases').select('id, title, work_id').eq('id', data.case_id).maybeSingle()
           : Promise.resolve({ data: null }),
         fetchAttachments('inspections', id),
       ]);
-      if (workRes.error) throw workRes.error;
-      setWork(workRes.data || null);
+      if (caseRes.error) throw caseRes.error;
+      setCaseRecord(caseRes.data || null);
+
+      // 關聯工作：優先使用案件的 work_id（舊資料退回會勘自身的 work_id）
+      const relatedWorkId = caseRes.data?.work_id || data.work_id;
+      if (relatedWorkId) {
+        const workRes = await supabase
+          .from('works')
+          .select('id, title, status')
+          .eq('id', relatedWorkId)
+          .maybeSingle();
+        if (workRes.error) throw workRes.error;
+        setWork(workRes.data || null);
+      } else {
+        setWork(null);
+      }
 
       setPhotos(
         attachments.map((a) => ({
@@ -121,6 +136,7 @@ export default function InspectionDetailPage() {
                 <h1 className="text-lg font-bold text-gray-800">{record.title}</h1>
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
                   <span className="info-tag bg-teal-50 text-teal-700">會勘日期：{formatDate(record.inspection_date)}</span>
+                  {record.stage && <span className="info-tag bg-teal-50 text-teal-700">{record.stage}</span>}
                 </div>
               </div>
               {isAdmin && (
@@ -184,6 +200,25 @@ export default function InspectionDetailPage() {
               </div>
             )}
           </div>
+
+          {/* 所屬案件 */}
+          {caseRecord ? (
+            <div className="card p-5">
+              <h2 className="mb-3 text-sm font-semibold text-gray-800">所屬案件</h2>
+              <Link
+                href={`/cases/${caseRecord.id}`}
+                className="card card-bar card-bar-indigo flex items-center justify-between gap-3 p-4 transition-shadow hover:shadow-soft"
+              >
+                <div className="min-w-0">
+                  <h3 className="truncate text-[15px] font-bold text-gray-800">{caseRecord.title}</h3>
+                  <p className="mt-1 text-xs text-gray-400">點擊查看案件與所有會勘紀錄</p>
+                </div>
+                <svg className="h-4 w-4 shrink-0 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
+            </div>
+          ) : null}
 
           {/* 關聯工作 */}
           {work ? (

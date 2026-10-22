@@ -58,6 +58,21 @@ create table if not exists public.work_progress (
   updated_at timestamptz default now()
 );
 
+create table if not exists public.cases (
+  id uuid default gen_random_uuid() primary key,
+  title text not null,                -- 案件名稱（必填）
+  description text,                   -- 案件說明（選填）
+  location text,                      -- 地點（選填）
+  status text default 'in_progress' check (status in ('in_progress', 'completed')),
+  work_id uuid references public.works(id) on delete set null,  -- 選填，可連結工作
+  created_by uuid references public.profiles(id),
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+create index if not exists cases_work_idx on public.cases (work_id);
+create index if not exists cases_status_idx on public.cases (status);
+
 create table if not exists public.inspections (
   id uuid default gen_random_uuid() primary key,
   title text not null,
@@ -67,7 +82,9 @@ create table if not exists public.inspections (
   description text,
   conclusion text,
   notes text,
-  work_id uuid references public.works(id) on delete set null,  -- 選填，可連結工作
+  stage text,                         -- 會勘階段（初勘、複勘、完工會勘等，自由文字）
+  case_id uuid references public.cases(id) on delete cascade not null,  -- 會勘一定屬於案件
+  work_id uuid references public.works(id) on delete set null,  -- 向後相容保留，建議優先使用案件的 work_id
   created_by uuid references public.profiles(id),
   created_at timestamptz default now(),
   updated_at timestamptz default now()
@@ -75,6 +92,7 @@ create table if not exists public.inspections (
 
 create index if not exists inspections_date_idx on public.inspections (inspection_date);
 create index if not exists inspections_work_idx on public.inspections (work_id);
+create index if not exists inspections_case_idx on public.inspections (case_id);
 
 create table if not exists public.attachments (
   id uuid default gen_random_uuid() primary key,
@@ -264,6 +282,33 @@ create policy "work_progress_update_admin"
 drop policy if exists "work_progress_delete_admin" on public.work_progress;
 create policy "work_progress_delete_admin"
   on public.work_progress for delete
+  to authenticated
+  using (public.is_admin());
+
+-- cases：登入者可讀；僅 admin 可寫
+alter table public.cases enable row level security;
+
+drop policy if exists "cases_select_authenticated" on public.cases;
+create policy "cases_select_authenticated"
+  on public.cases for select
+  to authenticated
+  using (true);
+
+drop policy if exists "cases_insert_admin" on public.cases;
+create policy "cases_insert_admin"
+  on public.cases for insert
+  to authenticated
+  with check (public.is_admin());
+
+drop policy if exists "cases_update_admin" on public.cases;
+create policy "cases_update_admin"
+  on public.cases for update
+  to authenticated
+  using (public.is_admin());
+
+drop policy if exists "cases_delete_admin" on public.cases;
+create policy "cases_delete_admin"
+  on public.cases for delete
   to authenticated
   using (public.is_admin());
 

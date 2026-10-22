@@ -37,7 +37,7 @@ export default function InspectionsPage() {
       const supabase = createClient();
       let query = supabase
         .from('inspections')
-        .select('*, works(id, title)', { count: 'exact' });
+        .select('*, cases(id, title)', { count: 'exact' });
 
       if (filters.dateFrom) query = query.gte('inspection_date', filters.dateFrom);
       if (filters.dateTo) query = query.lte('inspection_date', filters.dateTo);
@@ -168,10 +168,13 @@ export default function InspectionsPage() {
                   <h2 className="truncate text-[15px] font-bold text-gray-800">{item.title}</h2>
                   <div className="mt-2 flex flex-wrap items-center gap-1.5">
                     <span className="info-tag bg-teal-50 text-teal-700">{formatDate(item.inspection_date)}</span>
-                    {item.works ? (
-                      <span className="info-tag bg-accent-50 text-accent-700">關聯工作：{item.works.title}</span>
+                    {item.stage && <span className="info-tag bg-teal-50 text-teal-700">{item.stage}</span>}
+                    {item.cases ? (
+                      <span className="max-w-full truncate info-tag bg-indigo-50 text-indigo-700">
+                        案件：{item.cases.title}
+                      </span>
                     ) : (
-                      <span className="info-tag bg-gray-100 text-gray-500">未關聯工作</span>
+                      <span className="info-tag bg-gray-100 text-gray-500">未關聯案件</span>
                     )}
                   </div>
                   <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
