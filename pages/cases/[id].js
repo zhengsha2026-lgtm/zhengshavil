@@ -198,6 +198,7 @@ export default function CaseDetailPage() {
                   新增會勘
                 </Link>
               )}
+
             </div>
 
             {inspections.length === 0 ? (

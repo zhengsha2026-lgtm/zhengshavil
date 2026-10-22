@@ -75,12 +75,17 @@ export default function CasesPage() {
           <p className="mt-0.5 text-xs text-gray-400">以案件為單位管理會勘，單次或多次會勘皆可</p>
         </div>
         {isAdmin && (
-          <Link href="/cases/new" className="btn-primary !px-3.5 !py-2 text-sm sm:!px-4">
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-            </svg>
-            新增案件
-          </Link>
+          <div className="flex gap-2">
+            <Link href="/inspections/new?from=list" className="btn-secondary !px-3.5 !py-2 text-sm">
+              新增會勘
+            </Link>
+            <Link href="/cases/new" className="btn-primary !px-3.5 !py-2 text-sm sm:!px-4">
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+              新增案件
+            </Link>
+          </div>
         )}
       </div>
 

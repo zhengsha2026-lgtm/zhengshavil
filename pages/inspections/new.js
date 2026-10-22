@@ -8,16 +8,19 @@ import { LoadingPage, AccessDenied } from '@/components/Feedback';
 export default function NewInspectionPage() {
   const router = useRouter();
   const { isAdmin, loading } = useUser();
-  // 從案件詳情頁進入：query 帶 case_id 自動選中該案件
+  // 從案件詳情頁進入：query 帶 case_id，案件鎖定不可改
+  // 從案件列表頁進入：query 帶 from=list，顯示案件選擇／快速建立
   // 從工作詳情頁進入：query 帶 work_id，快速建立新案件時自動關聯該工作
   const [defaultCaseId, setDefaultCaseId] = useState(null);
   const [quickWorkId, setQuickWorkId] = useState(null);
+  const [allowCaseChange, setAllowCaseChange] = useState(false);
 
   useEffect(() => {
     if (!router.isReady) return;
     setDefaultCaseId(router.query.case_id || null);
     setQuickWorkId(router.query.work_id || null);
-  }, [router.isReady, router.query.case_id, router.query.work_id]);
+    setAllowCaseChange(router.query.from === 'list');
+  }, [router.isReady, router.query.case_id, router.query.work_id, router.query.from]);
 
   return (
     <Layout title="新增會勘">
@@ -33,7 +36,12 @@ export default function NewInspectionPage() {
       ) : !isAdmin ? (
         <AccessDenied />
       ) : (
-        <InspectionForm mode="new" defaultCaseId={defaultCaseId} quickWorkId={quickWorkId} />
+        <InspectionForm
+          mode="new"
+          defaultCaseId={defaultCaseId}
+          quickWorkId={quickWorkId}
+          allowCaseChange={allowCaseChange}
+        />
       )}
     </Layout>
   );

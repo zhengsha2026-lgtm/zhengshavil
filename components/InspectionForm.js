@@ -13,10 +13,17 @@ const STAGE_OPTIONS = ['初勘', '複勘', '完工會勘'];
  * 會勘紀錄新增／編輯表單
  * mode: 'new' | 'edit'
  * initial: 會勘資料（含 attachments）— 編輯模式必填
- * defaultCaseId: 預設所屬案件（從案件詳情頁進入時自動帶入）
+ * defaultCaseId: 預設所屬案件（從案件詳情頁進入時自動帶入，鎖定不可改）
  * quickWorkId: 快速建立新案件時自動關聯的工作（從工作詳情頁進入時帶入）
+ * allowCaseChange: 是否顯示案件選擇／快速建立（從案件列表頁進入時為 true）
  */
-export default function InspectionForm({ mode = 'new', initial = {}, defaultCaseId = null, quickWorkId = null }) {
+export default function InspectionForm({
+  mode = 'new',
+  initial = {},
+  defaultCaseId = null,
+  quickWorkId = null,
+  allowCaseChange = false,
+}) {
   const router = useRouter();
   const { user } = useUser();
   const isEdit = mode === 'edit';
@@ -32,7 +39,8 @@ export default function InspectionForm({ mode = 'new', initial = {}, defaultCase
     stage: initial.stage || '',
   });
   const [cases, setCases] = useState([]); // 可選擇的既有案件
-  const [caseMode, setCaseMode] = useState(isEdit || defaultCaseId ? 'existing' : 'existing'); // existing | new
+  const [lockedCase, setLockedCase] = useState(null); // 鎖定的案件（從案件詳情頁帶入時）
+  const [caseMode, setCaseMode] = useState('existing'); // existing | new
   const [caseId, setCaseId] = useState(initial.case_id || defaultCaseId || '');
   const [newCaseTitle, setNewCaseTitle] = useState('');
   const [error, setError] = useState('');
@@ -42,24 +50,36 @@ export default function InspectionForm({ mode = 'new', initial = {}, defaultCase
     pending: [],
   });
 
-  // 載入可選擇的案件清單（最近 100 筆）
+  // 載入案件資料：
+  // - allowCaseChange 時載入可選擇的案件清單（最近 100 筆）
+  // - 鎖定案件時（defaultCaseId）載入該案件名稱顯示為唯讀
   useEffect(() => {
     async function loadCases() {
       try {
         const supabase = createClient();
-        const { data, error: casesError } = await supabase
-          .from('cases')
-          .select('id, title, status')
-          .order('created_at', { ascending: false })
-          .limit(100);
-        if (casesError) throw casesError;
-        setCases(data || []);
+        if (allowCaseChange) {
+          const { data, error: casesError } = await supabase
+            .from('cases')
+            .select('id, title, status')
+            .order('created_at', { ascending: false })
+            .limit(100);
+          if (casesError) throw casesError;
+          setCases(data || []);
+        } else if (defaultCaseId) {
+          const { data, error: caseError } = await supabase
+            .from('cases')
+            .select('id, title')
+            .eq('id', defaultCaseId)
+            .maybeSingle();
+          if (caseError) throw caseError;
+          setLockedCase(data || null);
+        }
       } catch (err) {
-        console.error('載入案件清單失敗：', err);
+        console.error('載入案件資料失敗：', err);
       }
     }
     loadCases();
-  }, []);
+  }, [allowCaseChange, defaultCaseId]);
 
   function set(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -77,8 +97,13 @@ export default function InspectionForm({ mode = 'new', initial = {}, defaultCase
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
-    if (caseMode === 'new' && !newCaseTitle.trim()) {
+    if (allowCaseChange && caseMode === 'new' && !newCaseTitle.trim()) {
       setError('請輸入新案件名稱，或改為選擇既有案件');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    if (!allowCaseChange && !caseId) {
+      setError('缺少所屬案件，請從案件頁重新進入');
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
@@ -95,7 +120,7 @@ export default function InspectionForm({ mode = 'new', initial = {}, defaultCase
 
       // 1. 決定所屬案件（必要時快速建立新案件，不跳頁）
       let finalCaseId = caseId;
-      if (caseMode === 'new') {
+      if (allowCaseChange && caseMode === 'new') {
         const casePayload = {
           title: newCaseTitle.trim(),
           work_id: quickWorkId || null,
@@ -164,65 +189,83 @@ export default function InspectionForm({ mode = 'new', initial = {}, defaultCase
           所屬案件 <span className="text-red-500">*</span>
         </h2>
 
-        <div className="mb-3 flex gap-2">
-          <button
-            type="button"
-            onClick={() => setCaseMode('existing')}
-            disabled={saving}
-            className={`flex-1 rounded-xl px-3 py-2 text-xs font-semibold transition-colors ${
-              caseMode === 'existing'
-                ? 'bg-accent-600 text-white'
-                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-            }`}
-          >
-            選擇既有案件
-          </button>
-          <button
-            type="button"
-            onClick={() => setCaseMode('new')}
-            disabled={saving}
-            className={`flex-1 rounded-xl px-3 py-2 text-xs font-semibold transition-colors ${
-              caseMode === 'new'
-                ? 'bg-accent-600 text-white'
-                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-            }`}
-          >
-            快速建立新案件
-          </button>
-        </div>
+        {allowCaseChange ? (
+          <>
+            <div className="mb-3 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setCaseMode('existing')}
+                disabled={saving}
+                className={`flex-1 rounded-xl px-3 py-2 text-xs font-semibold transition-colors ${
+                  caseMode === 'existing'
+                    ? 'bg-accent-600 text-white'
+                    : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                }`}
+              >
+                選擇既有案件
+              </button>
+              <button
+                type="button"
+                onClick={() => setCaseMode('new')}
+                disabled={saving}
+                className={`flex-1 rounded-xl px-3 py-2 text-xs font-semibold transition-colors ${
+                  caseMode === 'new'
+                    ? 'bg-accent-600 text-white'
+                    : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                }`}
+              >
+                快速建立新案件
+              </button>
+            </div>
 
-        {caseMode === 'existing' ? (
-          <div>
-            <select
-              className="input"
-              value={caseId}
-              onChange={(e) => setCaseId(e.target.value)}
-              disabled={saving}
-              aria-label="所屬案件"
-            >
-              <option value="">請選擇案件</option>
-              {cases.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.title}
-                  {c.status === 'completed' ? '（已結案）' : ''}
-                </option>
-              ))}
-            </select>
-            <p className="mt-1.5 text-xs text-gray-400">列表顯示最近 100 筆案件</p>
-          </div>
+            {caseMode === 'existing' ? (
+              <div>
+                <select
+                  className="input"
+                  value={caseId}
+                  onChange={(e) => setCaseId(e.target.value)}
+                  disabled={saving}
+                  aria-label="所屬案件"
+                >
+                  <option value="">請選擇案件</option>
+                  {cases.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.title}
+                      {c.status === 'completed' ? '（已結案）' : ''}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1.5 text-xs text-gray-400">列表顯示最近 100 筆案件</p>
+              </div>
+            ) : (
+              <div>
+                <input
+                  type="text"
+                  className="input"
+                  placeholder="新案件名稱，例如：中山路巷口路面損壞案"
+                  value={newCaseTitle}
+                  onChange={(e) => setNewCaseTitle(e.target.value)}
+                  disabled={saving}
+                />
+                <p className="mt-1.5 text-xs text-gray-400">
+                  儲存時自動建立案件，無需另外操作{quickWorkId ? '，並自動關聯此工作' : ''}
+                </p>
+              </div>
+            )}
+          </>
         ) : (
-          <div>
-            <input
-              type="text"
-              className="input"
-              placeholder="新案件名稱，例如：中山路巷口路面損壞案"
-              value={newCaseTitle}
-              onChange={(e) => setNewCaseTitle(e.target.value)}
-              disabled={saving}
-            />
-            <p className="mt-1.5 text-xs text-gray-400">
-              儲存時自動建立案件，無需另外操作{quickWorkId ? '，並自動關聯此工作' : ''}
-            </p>
+          <div className="flex items-center gap-3 rounded-xl bg-indigo-50/60 px-4 py-3">
+            <svg className="h-5 w-5 shrink-0 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.75">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+              />
+            </svg>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-bold text-gray-800">{lockedCase?.title || '載入中…'}</p>
+              <p className="text-xs text-gray-400">此會勘將記錄在上述案件下</p>
+            </div>
           </div>
         )}
       </section>
