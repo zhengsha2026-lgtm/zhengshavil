@@ -81,6 +81,47 @@ export default function InspectionForm({
     loadCases();
   }, [allowCaseChange, defaultCaseId]);
 
+  // 新增模式：鎖定案件載入後，會勘標題自動帶入案件名稱（可再修改）
+  useEffect(() => {
+    if (!isEdit && lockedCase?.title) {
+      setForm((f) => (f.title ? f : { ...f, title: lockedCase.title }));
+    }
+  }, [isEdit, lockedCase]);
+
+  // 切換所選案件（下拉）：標題同步為該案件名稱（可再修改）
+  function handleCaseSelect(value) {
+    setCaseId(value);
+    if (!isEdit) {
+      const selected = cases.find((c) => c.id === value);
+      if (selected) {
+        setForm((f) => ({ ...f, title: selected.title }));
+      }
+    }
+  }
+
+  // 快速建立新案件：名稱輸入時，標題同步跟隨（可再修改）
+  function handleNewCaseTitle(value) {
+    setNewCaseTitle(value);
+    if (!isEdit) {
+      setForm((f) => ({ ...f, title: value }));
+    }
+  }
+
+  // 切換「選擇既有／快速建立」時：標題同步為對應來源的案件名稱
+  function handleCaseModeChange(mode) {
+    setCaseMode(mode);
+    if (!isEdit) {
+      if (mode === 'new') {
+        setForm((f) => ({ ...f, title: newCaseTitle }));
+      } else {
+        const selected = cases.find((c) => c.id === caseId);
+        if (selected) {
+          setForm((f) => ({ ...f, title: selected.title }));
+        }
+      }
+    }
+  }
+
   function set(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
   }
@@ -194,7 +235,7 @@ export default function InspectionForm({
             <div className="mb-3 flex gap-2">
               <button
                 type="button"
-                onClick={() => setCaseMode('existing')}
+                onClick={() => handleCaseModeChange('existing')}
                 disabled={saving}
                 className={`flex-1 rounded-xl px-3 py-2 text-xs font-semibold transition-colors ${
                   caseMode === 'existing'
@@ -206,7 +247,7 @@ export default function InspectionForm({
               </button>
               <button
                 type="button"
-                onClick={() => setCaseMode('new')}
+                onClick={() => handleCaseModeChange('new')}
                 disabled={saving}
                 className={`flex-1 rounded-xl px-3 py-2 text-xs font-semibold transition-colors ${
                   caseMode === 'new'
@@ -223,7 +264,7 @@ export default function InspectionForm({
                 <select
                   className="input"
                   value={caseId}
-                  onChange={(e) => setCaseId(e.target.value)}
+                  onChange={(e) => handleCaseSelect(e.target.value)}
                   disabled={saving}
                   aria-label="所屬案件"
                 >
@@ -244,7 +285,7 @@ export default function InspectionForm({
                   className="input"
                   placeholder="新案件名稱，例如：中山路巷口路面損壞案"
                   value={newCaseTitle}
-                  onChange={(e) => setNewCaseTitle(e.target.value)}
+                  onChange={(e) => handleNewCaseTitle(e.target.value)}
                   disabled={saving}
                 />
                 <p className="mt-1.5 text-xs text-gray-400">
@@ -287,6 +328,9 @@ export default function InspectionForm({
               onChange={(e) => set('title', e.target.value)}
               disabled={saving}
             />
+            {!isEdit && (
+              <p className="mt-1.5 text-xs text-gray-400">已自動帶入案件名稱，可依需求修改</p>
+            )}
           </div>
 
           <div>
