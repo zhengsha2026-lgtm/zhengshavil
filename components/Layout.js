@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { href: '/', label: '首頁', icon: 'home' },
   { href: '/properties', label: '財產紀錄', icon: 'box' },
   { href: '/works', label: '工作紀錄', icon: 'wrench' },
+  { href: '/inspections', label: '會勘紀錄', icon: 'clipboard' },
 ];
 
 function NavIcon({ name, active }) {
@@ -28,6 +29,15 @@ function NavIcon({ name, active }) {
         strokeLinejoin="round"
         d="M11.42 15.17L17.73 19a2 2 0 002.73-.73l.4-.69a2 2 0 00-.73-2.73l-6.31-3.82m0 0l-3.8-6.31A2 2 0 006.5 3.62l-.69.4a2 2 0 00-.73 2.73l3.82 6.31m2.52 2.11l-2.52-2.11"
       />
+    ),
+    clipboard: (
+      <>
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+        />
+      </>
     ),
   };
   return (
@@ -133,7 +143,7 @@ export default function Layout({ children, title }) {
 
       {/* 手機底部導覽列 */}
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-gray-100 bg-white/95 backdrop-blur md:hidden">
-        <div className="grid grid-cols-3">
+        <div className="grid grid-cols-4">
           {NAV_ITEMS.map((item) => {
             const active = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
             return (

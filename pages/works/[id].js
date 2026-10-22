@@ -34,6 +34,7 @@ export default function WorkDetailPage() {
   const [record, setRecord] = useState(null);
   const [photos, setPhotos] = useState([]);
   const [progressList, setProgressList] = useState([]);
+  const [inspections, setInspections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -66,8 +67,8 @@ export default function WorkDetailPage() {
       }
       setRecord(data);
 
-      // 主工作照片 + 進度紀錄（含各自的進度照片）一次讀取
-      const [attachments, progressRes] = await Promise.all([
+      // 主工作照片 + 進度紀錄（含各自的進度照片）+ 關聯會勘一次讀取
+      const [attachments, progressRes, inspectionRes] = await Promise.all([
         fetchAttachments('works', id),
         supabase
           .from('work_progress')
@@ -75,8 +76,16 @@ export default function WorkDetailPage() {
           .eq('work_id', id)
           .order('progress_date', { ascending: false })
           .order('created_at', { ascending: false }),
+        supabase
+          .from('inspections')
+          .select('id, title, inspection_date, location')
+          .eq('work_id', id)
+          .order('inspection_date', { ascending: false, nullsFirst: false })
+          .order('created_at', { ascending: false }),
       ]);
       if (progressRes.error) throw progressRes.error;
+      if (inspectionRes.error) throw inspectionRes.error;
+      setInspections(inspectionRes.data || []);
 
       const toPhoto = (a) => ({
         id: a.id,
@@ -332,6 +341,52 @@ export default function WorkDetailPage() {
                   </li>
                 ))}
               </ol>
+            )}
+          </div>
+
+          {/* 相關會勘 */}
+          <div className="card p-5">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <h2 className="text-sm font-semibold text-gray-800">相關會勘（{inspections.length} 筆）</h2>
+              {isAdmin && (
+                <Link
+                  href={`/inspections/new?work_id=${record.id}`}
+                  className="btn-primary !px-3.5 !py-2 text-sm"
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                  </svg>
+                  新增會勘
+                </Link>
+              )}
+            </div>
+
+            {inspections.length === 0 ? (
+              <p className="py-6 text-center text-xs text-gray-400">
+                此工作尚無關聯的會勘紀錄
+                {isAdmin ? '，可點擊「新增會勘」記錄現場勘查' : ''}
+              </p>
+            ) : (
+              <div className="space-y-2.5">
+                {inspections.map((insp) => (
+                  <Link
+                    key={insp.id}
+                    href={`/inspections/${insp.id}`}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-gray-100 px-4 py-3 transition-colors hover:border-teal-200 hover:bg-teal-50/40"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-gray-800">{insp.title}</p>
+                      <p className="mt-0.5 text-xs text-gray-400">
+                        {formatDate(insp.inspection_date)}
+                        {insp.location ? ` · ${insp.location}` : ''}
+                      </p>
+                    </div>
+                    <svg className="h-4 w-4 shrink-0 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                    </svg>
+                  </Link>
+                ))}
+              </div>
             )}
           </div>
 

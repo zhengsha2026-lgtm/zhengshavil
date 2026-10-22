@@ -133,6 +133,7 @@ Storage buckets：`property-files`、`work-files`（皆公開讀取、僅 admin 
 
 ## 更新紀錄
 
+- 2026-10-22：新增會勘紀錄模組（inspections 表可選擇性關聯工作；/inspections 列表支援搜尋＋日期篩選、詳情頁顯示關聯工作可跳轉、新增／編輯表單含關聯工作下拉與照片上傳至 inspection-files bucket；工作詳情頁新增「相關會勘」區塊；導覽列加入會勘入口；須執行 migration-20261022-inspections.sql）
 - 2026-10-20：進度表單支援「本次為完工」一鍵結案（勾選後顯示結束日期欄位，預設帶入進度日期；儲存時同步主工作為已完成＋結束日期；編輯結案進度可取消勾選，主工作自動回到進行中並清空結束日期；結束日期驗證不得早於開始日期）
 - 2026-10-18：視覺強化（統計卡片淺色底＋左側色條：財產藍／工作紫／金額綠；列表卡片加色條、標題加粗、金額放大變色；狀態標籤飽和度提高；天數／筆數／支出改 info-tag 小標籤；篩選區改淺灰背景與列表區隔；新增 globals.css 通用樣式 card-bar／info-tag）
 - 2026-10-18：全站圖示統一改用 lucide-react（移除 @heroicons/react），建立 components/icons.js 圖示規範（StatIcon/EmptyIcon/ActionIcon/NavIcon），首頁統計卡片與空狀態圖示更新

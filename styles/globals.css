@@ -50,6 +50,9 @@
   .card-bar-green::before {
     @apply bg-emerald-500;
   }
+  .card-bar-teal::before {
+    @apply bg-teal-500;
+  }
   /* 小標籤：天數、筆數、支出等資訊 */
   .info-tag {
     @apply inline-flex items-center rounded-lg px-1.5 py-0.5 text-xs font-medium;

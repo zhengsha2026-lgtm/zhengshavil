@@ -58,9 +58,27 @@ create table if not exists public.work_progress (
   updated_at timestamptz default now()
 );
 
+create table if not exists public.inspections (
+  id uuid default gen_random_uuid() primary key,
+  title text not null,
+  inspection_date date not null,
+  location text,
+  participants text,
+  description text,
+  conclusion text,
+  notes text,
+  work_id uuid references public.works(id) on delete set null,  -- 選填，可連結工作
+  created_by uuid references public.profiles(id),
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+create index if not exists inspections_date_idx on public.inspections (inspection_date);
+create index if not exists inspections_work_idx on public.inspections (work_id);
+
 create table if not exists public.attachments (
   id uuid default gen_random_uuid() primary key,
-  related_table text not null check (related_table in ('properties', 'works')),
+  related_table text not null check (related_table in ('properties', 'works', 'inspections')),
   related_id uuid not null,
   file_path text not null,
   file_type text default 'image',
@@ -249,6 +267,33 @@ create policy "work_progress_delete_admin"
   to authenticated
   using (public.is_admin());
 
+-- inspections：登入者可讀；僅 admin 可寫
+alter table public.inspections enable row level security;
+
+drop policy if exists "inspections_select_authenticated" on public.inspections;
+create policy "inspections_select_authenticated"
+  on public.inspections for select
+  to authenticated
+  using (true);
+
+drop policy if exists "inspections_insert_admin" on public.inspections;
+create policy "inspections_insert_admin"
+  on public.inspections for insert
+  to authenticated
+  with check (public.is_admin());
+
+drop policy if exists "inspections_update_admin" on public.inspections;
+create policy "inspections_update_admin"
+  on public.inspections for update
+  to authenticated
+  using (public.is_admin());
+
+drop policy if exists "inspections_delete_admin" on public.inspections;
+create policy "inspections_delete_admin"
+  on public.inspections for delete
+  to authenticated
+  using (public.is_admin());
+
 -- attachments：登入者可讀；僅 admin 可寫
 drop policy if exists "attachments_select_authenticated" on public.attachments;
 create policy "attachments_select_authenticated"
@@ -284,6 +329,10 @@ on conflict (id) do nothing;
 
 insert into storage.buckets (id, name, public)
 values ('work-files', 'work-files', true)
+on conflict (id) do nothing;
+
+insert into storage.buckets (id, name, public)
+values ('inspection-files', 'inspection-files', true)
 on conflict (id) do nothing;
 
 -- property-files 政策
@@ -333,6 +382,30 @@ create policy "work_files_admin_delete"
   on storage.objects for delete
   to authenticated
   using (bucket_id = 'work-files' and public.is_admin());
+
+-- inspection-files 政策
+drop policy if exists "inspection_files_public_read" on storage.objects;
+create policy "inspection_files_public_read"
+  on storage.objects for select
+  using (bucket_id = 'inspection-files');
+
+drop policy if exists "inspection_files_admin_insert" on storage.objects;
+create policy "inspection_files_admin_insert"
+  on storage.objects for insert
+  to authenticated
+  with check (bucket_id = 'inspection-files' and public.is_admin());
+
+drop policy if exists "inspection_files_admin_update" on storage.objects;
+create policy "inspection_files_admin_update"
+  on storage.objects for update
+  to authenticated
+  using (bucket_id = 'inspection-files' and public.is_admin());
+
+drop policy if exists "inspection_files_admin_delete" on storage.objects;
+create policy "inspection_files_admin_delete"
+  on storage.objects for delete
+  to authenticated
+  using (bucket_id = 'inspection-files' and public.is_admin());
 
 -- -----------------------------------------------------
 -- 6. 第一個 admin 帳號設定方式
