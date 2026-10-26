@@ -133,6 +133,7 @@ Storage buckets：`property-files`、`work-files`（皆公開讀取、僅 admin 
 
 ## 更新紀錄
 
+- 2026-10-26：匯出功能擴充（工作頁新增「完整報表（含案件／會勘）」Excel 五工作表：摘要／工作總表／進度明細／案件總表／會勘明細與 PDF 依工作分組；案件頁新增匯出 Excel（摘要／案件總表／會勘明細）與 PDF；所有匯出依目前篩選條件、含 W001／C001／I001 流水號與筆數統計；PDF 工具抽至 lib/exportShared.js）
 - 2026-10-26：工作紀錄匯出功能（/works 列表依目前篩選條件匯出 Excel 與 PDF；Excel 兩個工作表：工作總表＋進度明細；PDF 為簡易報表格式含篩選條件說明與各工作進度摘要，中文以 html2canvas 渲染完整顯示；xlsx/jspdf/html2canvas 皆動態載入；無資料時提示「無符合條件的資料」）
 - 2026-10-22：會勘改為「案件」為單位（新增 cases 表，inspections 加 case_id 必填＋stage 欄位；新增 /cases 列表／詳情／新增／編輯頁；會勘表單必選所屬案件、可快速建立新案件不跳頁；會勘階段支援初勘／複勘／完工會勘或自由輸入；工作詳情頁改顯示相關案件；導覽列改為案件入口；既有會勘自動回填為各自案件；須執行 migration-20261022-cases.sql）
 - 2026-10-22：新增會勘紀錄模組（inspections 表可選擇性關聯工作；/inspections 列表支援搜尋＋日期篩選、詳情頁顯示關聯工作可跳轉、新增／編輯表單含關聯工作下拉與照片上傳至 inspection-files bucket；工作詳情頁新增「相關會勘」區塊；導覽列加入會勘入口；須執行 migration-20261022-inspections.sql）

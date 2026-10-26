@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabaseBrowser';
 import { WORK_CATEGORIES, WORK_STATUS_OPTIONS, PAGE_SIZE } from '@/lib/constants';
 import { formatDate, formatCurrency, calcWorkDays } from '@/lib/format';
 import { escapeSearchKeyword } from '@/lib/api';
-import { exportWorksExcel, exportWorksPdf } from '@/lib/exportWorks';
+import { exportWorksExcel, exportWorksPdf, exportFullExcel, exportFullPdf } from '@/lib/exportWorks';
 import StatusBadge, { CategoryBadge } from '@/components/StatusBadge';
 import Pagination from '@/components/Pagination';
 import { LoadingPage, EmptyState } from '@/components/Feedback';
@@ -127,9 +127,13 @@ export default function WorksPage() {
     setExportNotice('');
     try {
       if (kind === 'excel') {
-        await exportWorksExcel(filters, filters.q);
+        await exportWorksExcel(filters, debouncedQ);
+      } else if (kind === 'pdf') {
+        await exportWorksPdf(filters, debouncedQ);
+      } else if (kind === 'full-excel') {
+        await exportFullExcel(filters, debouncedQ);
       } else {
-        await exportWorksPdf(filters, filters.q);
+        await exportFullPdf(filters, debouncedQ);
       }
     } catch (err) {
       setExportNotice(err.message || '匯出失敗，請稍後再試');
@@ -268,7 +272,7 @@ export default function WorksPage() {
                 </button>
 
                 {exportMenuOpen && (
-                  <div className="absolute right-0 z-20 mt-1.5 w-36 overflow-hidden rounded-xl bg-white py-1 shadow-lg ring-1 ring-gray-100">
+                  <div className="absolute right-0 z-20 mt-1.5 w-44 overflow-hidden rounded-xl bg-white py-1 shadow-lg ring-1 ring-gray-100">
                     <button
                       type="button"
                       className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-xs font-medium text-gray-700 hover:bg-gray-50"
@@ -294,6 +298,33 @@ export default function WorksPage() {
                         <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5A3.375 3.375 0 0010.125 2.25H9M12 12v9m0-9l-3.75 3.75M12 12l3.75 3.75M9 4.5v-2A.75.75 0 019.75 2h4.5a.75.75 0 01.75.75v2" />
                       </svg>
                       匯出 PDF
+                    </button>
+                    <div className="my-1 border-t border-gray-100" />
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-xs font-medium text-gray-700 hover:bg-gray-50"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleExport('full-excel');
+                      }}
+                    >
+                      <svg className="h-4 w-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zm0 9.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zm9.75-9.75A2.25 2.25 0 0115.75 3.75H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25A2.25 2.25 0 0113.5 8.25V6zm0 9.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+                      </svg>
+                      完整報表 Excel
+                    </button>
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-xs font-medium text-gray-700 hover:bg-gray-50"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleExport('full-pdf');
+                      }}
+                    >
+                      <svg className="h-4 w-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5A3.375 3.375 0 0010.125 2.25H9M12 12v9m0-9l-3.75 3.75M12 12l3.75 3.75M9 4.5v-2A.75.75 0 019.75 2h4.5a.75.75 0 01.75.75v2" />
+                      </svg>
+                      完整報表 PDF
                     </button>
                   </div>
                 )}
