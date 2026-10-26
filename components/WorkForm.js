@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import { createClient } from '@/lib/supabaseBrowser';
 import { saveAttachments } from '@/lib/api';
@@ -35,6 +35,49 @@ export default function WorkForm({ mode = 'new', initial = {} }) {
     existing: initial.attachments || [],
     pending: [],
   });
+
+  // 關聯案件：可選清單（未關聯其他工作的案件＋編輯時目前關聯者）
+  const [availableCases, setAvailableCases] = useState([]);
+  const [casesLoaded, setCasesLoaded] = useState(false);
+  const [caseSearch, setCaseSearch] = useState('');
+  const [selectedCaseId, setSelectedCaseId] = useState('');
+  const originalCaseIdRef = useRef(null);
+
+  useEffect(() => {
+    async function loadCases() {
+      try {
+        const supabase = createClient();
+        // 只撈「尚未關聯工作」的案件；編輯模式另外包含目前關聯本工作的案件
+        let filter = 'work_id.is.null';
+        if (mode === 'edit' && initial.id) {
+          filter += `,work_id.eq.${initial.id}`;
+        }
+        const { data, error: casesError } = await supabase
+          .from('cases')
+          .select('id, title, status, work_id, inspections(count)')
+          .or(filter)
+          .order('created_at', { ascending: false })
+          .limit(500);
+        if (casesError) throw casesError;
+        const rows = data || [];
+        setAvailableCases(rows);
+        if (mode === 'edit') {
+          const current = rows.find((c) => c.work_id === initial.id);
+          originalCaseIdRef.current = current?.id || null;
+          setSelectedCaseId(current?.id || '');
+        }
+      } catch (err) {
+        console.error('載入案件清單失敗：', err);
+      } finally {
+        setCasesLoaded(true);
+      }
+    }
+    loadCases();
+  }, [mode, initial.id]);
+
+  const filteredCases = caseSearch.trim()
+    ? availableCases.filter((c) => c.title.toLowerCase().includes(caseSearch.trim().toLowerCase()))
+    : availableCases;
 
   function set(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -92,6 +135,40 @@ export default function WorkForm({ mode = 'new', initial = {} }) {
           .single();
         if (insertError) throw new Error(insertError.message);
         recordId = data.id;
+      }
+
+      // 關聯案件同步（僅在選擇變更時處理，條件更新避免同時操作覆蓋）
+      const originalCaseId = originalCaseIdRef.current;
+      const caseChanged = mode === 'edit' ? originalCaseId !== selectedCaseId : !!selectedCaseId;
+
+      if (caseChanged) {
+        // 編輯模式：先解除原案件（僅當它仍指向本工作）
+        if (mode === 'edit' && originalCaseId) {
+          const { error: clearError } = await supabase
+            .from('cases')
+            .update({ work_id: null })
+            .eq('id', originalCaseId)
+            .eq('work_id', recordId);
+          if (clearError) throw new Error(`解除原案件關聯失敗：${clearError.message}`);
+        }
+
+        // 設定新案件（條件：仍未關聯任何工作，搶到的才算數）
+        if (selectedCaseId) {
+          const { data: linkedRows, error: linkError } = await supabase
+            .from('cases')
+            .update({ work_id: recordId })
+            .eq('id', selectedCaseId)
+            .is('work_id', null)
+            .select('id');
+          if (linkError) throw new Error(`關聯案件失敗：${linkError.message}`);
+          if (!linkedRows || linkedRows.length === 0) {
+            throw new Error(
+              mode === 'edit'
+                ? '所選案件已關聯其他工作，工作資料已儲存但未變更關聯，請重新整理後再試'
+                : '所選案件已關聯其他工作，工作已建立但未關聯案件，請重新整理後再試'
+            );
+          }
+        }
       }
 
       await saveAttachments({
@@ -217,6 +294,54 @@ export default function WorkForm({ mode = 'new', initial = {} }) {
               disabled={saving}
             />
           </div>
+        </div>
+      </section>
+
+      {/* 相關案件 */}
+      <section className="card p-5">
+        <h2 className="mb-4 text-sm font-semibold text-gray-800">相關案件</h2>
+        <div className="space-y-3">
+          <div className="relative">
+            <svg
+              className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 10.5a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z" />
+            </svg>
+            <input
+              type="search"
+              className="input pl-10"
+              placeholder="搜尋案件名稱"
+              value={caseSearch}
+              onChange={(e) => setCaseSearch(e.target.value)}
+              disabled={saving}
+              aria-label="搜尋案件"
+            />
+          </div>
+
+          <select
+            className="input"
+            value={selectedCaseId}
+            onChange={(e) => setSelectedCaseId(e.target.value)}
+            disabled={saving}
+            aria-label="關聯案件"
+          >
+            <option value="">不關聯任何案件</option>
+            {!casesLoaded && <option value="" disabled>案件載入中…</option>}
+            {filteredCases.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.title}（{c.status === 'in_progress' ? '進行中' : '已結案'}・會勘{' '}
+                {c.inspections?.[0]?.count ?? 0} 次）
+              </option>
+            ))}
+          </select>
+
+          <p className="text-xs text-gray-400">
+            僅列出尚未關聯其他工作的案件；關聯後，案件與工作詳情頁會互相顯示
+          </p>
         </div>
       </section>
 
